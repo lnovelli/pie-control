@@ -41,6 +41,8 @@ class PieMenuView @JvmOverloads constructor(
     var currentEdge: Edge = Edge.LEFT
     var anchorX: Float = 0f
     var anchorY: Float = 0f
+    private var rawAnchorX: Float = 0f
+    private var rawAnchorY: Float = 0f
 
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -168,8 +170,12 @@ class PieMenuView @JvmOverloads constructor(
     }
 
     fun showAt(x: Float, y: Float, edge: Edge) {
-        this.anchorX = x
-        this.anchorY = y
+        this.rawAnchorX = x
+        this.rawAnchorY = y
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        this.anchorX = x - loc[0].toFloat()
+        this.anchorY = y - loc[1].toFloat()
         this.currentEdge = edge
         this.hoveredLayer = -1
         this.hoveredIndex = -1
@@ -181,6 +187,14 @@ class PieMenuView @JvmOverloads constructor(
         updatePaints()
         visibility = VISIBLE
         invalidate()
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        this.anchorX = rawAnchorX - loc[0].toFloat()
+        this.anchorY = rawAnchorY - loc[1].toFloat()
     }
 
     fun hide() {
@@ -201,19 +215,24 @@ class PieMenuView @JvmOverloads constructor(
         removeCallbacks(safetyDismissRunnable)
         postDelayed(safetyDismissRunnable, 3000)
 
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        val localX = event.rawX - loc[0].toFloat()
+        val localY = event.rawY - loc[1].toFloat()
+
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
-                updateHover(event.rawX, event.rawY)
+                updateHover(localX, localY)
                 return true
             }
             MotionEvent.ACTION_UP -> {
                 removeCallbacks(safetyDismissRunnable)
                 removeCallbacks(secondaryArmRunnable)
                 try {
-                    updateHover(event.rawX, event.rawY)
+                    updateHover(localX, localY)
                     val action = getHoveredAction()
                     if (action != null) {
                         val actionToTrigger = if (isSecondaryArmed && action.secondaryAction != null) {
