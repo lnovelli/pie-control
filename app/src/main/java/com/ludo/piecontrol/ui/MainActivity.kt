@@ -1672,7 +1672,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             holder.view.setOnClickListener {
-                val position = holder.bindingAdapterPosition
+                val position = holder.adapterPosition
                 if (position == RecyclerView.NO_POSITION) return@setOnClickListener
                 val selected = items[position]
                 val prev = items.indexOfFirst { it.packageName == selectedPackage }
