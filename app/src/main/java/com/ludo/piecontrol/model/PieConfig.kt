@@ -18,6 +18,7 @@ data class PieConfig(
     var iconColorHex: String = "#FFFFFFFF",
     var pieAlphaPercent: Int = 90,
     var pieScalePercent: Int = 100,
+    var innerRadiusDp: Int = 60,
     var hapticFeedback: Boolean = true,
     var layer1: MutableList<PieAction> = mutableListOf(),
     var layer2: MutableList<PieAction> = mutableListOf(),
@@ -44,22 +45,33 @@ data class PieConfig(
                 iconColorHex = "#FFFFFFFF",
                 pieAlphaPercent = 90,
                 pieScalePercent = 100,
+                innerRadiusDp = 60,
                 hapticFeedback = true,
                 layer1 = mutableListOf(
-                    PieAction(type = ActionType.BACK, label = "Back"),
-                    PieAction(type = ActionType.HOME, label = "Home"),
-                    PieAction(type = ActionType.RECENTS, label = "Recents"),
-                    PieAction(type = ActionType.NOTIFICATIONS, label = "Notifications"),
-                    PieAction(type = ActionType.ASSISTANT, label = "Assistant")
+                    PieAction(
+                        type = ActionType.BACK,
+                        label = "Back",
+                        secondaryAction = PieAction(type = ActionType.RECENTS, label = "Recents")
+                    ),
+                    PieAction(
+                        type = ActionType.HOME,
+                        label = "Home",
+                        secondaryAction = PieAction(type = ActionType.ASSISTANT, label = "Assistant")
+                    ),
+                    PieAction(
+                        type = ActionType.NOTIFICATIONS,
+                        label = "Notifications",
+                        secondaryAction = PieAction(type = ActionType.QUICK_SETTINGS, label = "Quick Settings")
+                    ),
+                    PieAction(type = ActionType.SCREENSHOT, label = "Screenshot"),
+                    PieAction(type = ActionType.LOCK_SCREEN, label = "Lock")
                 ),
                 layer2 = mutableListOf(
-                    PieAction(type = ActionType.QUICK_SETTINGS, label = "Quick Settings"),
-                    PieAction(type = ActionType.SCREENSHOT, label = "Screenshot"),
-                    PieAction(type = ActionType.LOCK_SCREEN, label = "Lock"),
                     PieAction(type = ActionType.POWER, label = "Power"),
                     PieAction(type = ActionType.FLASHLIGHT, label = "Torch"),
                     PieAction(type = ActionType.VOLUME_UP, label = "Vol +"),
-                    PieAction(type = ActionType.VOLUME_DOWN, label = "Vol -")
+                    PieAction(type = ActionType.VOLUME_DOWN, label = "Vol -"),
+                    PieAction(type = ActionType.CHECK_UPDATES, label = "Updates")
                 ),
                 layer3 = mutableListOf(
                     PieAction(type = ActionType.URL, label = "Google", data = "https://www.google.com")
@@ -83,6 +95,7 @@ data class PieConfig(
                 iconColorHex = json.optString("iconColorHex", "#FFFFFFFF"),
                 pieAlphaPercent = json.optInt("pieAlphaPercent", 90),
                 pieScalePercent = json.optInt("pieScalePercent", 100),
+                innerRadiusDp = json.optInt("innerRadiusDp", 60),
                 hapticFeedback = json.optBoolean("hapticFeedback", true)
             )
 
@@ -123,6 +136,7 @@ data class PieConfig(
             put("iconColorHex", iconColorHex)
             put("pieAlphaPercent", pieAlphaPercent)
             put("pieScalePercent", pieScalePercent)
+            put("innerRadiusDp", innerRadiusDp)
             put("hapticFeedback", hapticFeedback)
 
             val arr1 = JSONArray()

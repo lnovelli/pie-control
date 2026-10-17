@@ -199,6 +199,10 @@ class MainActivity : AppCompatActivity() {
         binding.sliderPieAlpha.value = config.pieAlphaPercent.toFloat().coerceIn(30f, 100f)
         binding.tvPieAlphaLabel.text = "Opacity: ${config.pieAlphaPercent}%"
 
+        // Inner Ring Distance from Finger
+        binding.sliderInnerRadius.value = config.innerRadiusDp.toFloat().coerceIn(20f, 140f)
+        binding.tvInnerRadiusLabel.text = "Distance from Finger: ${config.innerRadiusDp} dp"
+
         binding.switchHaptic.isChecked = config.hapticFeedback
 
         // App Version
@@ -265,6 +269,12 @@ class MainActivity : AppCompatActivity() {
         binding.sliderPieAlpha.addOnChangeListener { _, value, _ ->
             config.pieAlphaPercent = value.toInt()
             binding.tvPieAlphaLabel.text = "Opacity: ${config.pieAlphaPercent}%"
+            saveConfig()
+        }
+
+        binding.sliderInnerRadius.addOnChangeListener { _, value, _ ->
+            config.innerRadiusDp = value.toInt()
+            binding.tvInnerRadiusLabel.text = "Distance from Finger: ${config.innerRadiusDp} dp"
             saveConfig()
         }
 
@@ -428,11 +438,28 @@ class MainActivity : AppCompatActivity() {
             val itemBinding = ItemRingActionBinding.inflate(layoutInflater, container, false)
             itemBinding.tvActionLabel.text = action.label
 
-            itemBinding.tvActionSub.text = when (action.type) {
-                ActionType.APP -> "App: ${action.data}"
-                ActionType.URL -> "Website: ${action.data}"
-                ActionType.SHORTCUT -> "Shortcut"
-                else -> "Core System Action"
+            val sec = action.secondaryAction
+            if (sec != null) {
+                itemBinding.ivSecondaryIcon.visibility = View.VISIBLE
+                if (sec.type == ActionType.APP && sec.data.isNotEmpty()) {
+                    try {
+                        val appIcon = packageManager.getApplicationIcon(sec.data)
+                        itemBinding.ivSecondaryIcon.setImageDrawable(appIcon)
+                    } catch (e: Exception) {
+                        itemBinding.ivSecondaryIcon.setImageResource(sec.type.iconRes)
+                    }
+                } else {
+                    itemBinding.ivSecondaryIcon.setImageResource(sec.type.iconRes)
+                }
+                itemBinding.tvActionSub.text = "1st: ${action.label} • 2nd: ${sec.label}"
+            } else {
+                itemBinding.ivSecondaryIcon.visibility = View.GONE
+                itemBinding.tvActionSub.text = when (action.type) {
+                    ActionType.APP -> "App: ${action.data}"
+                    ActionType.URL -> "Website: ${action.data}"
+                    ActionType.SHORTCUT -> "Shortcut"
+                    else -> "Core System Action"
+                }
             }
 
             if (action.type == ActionType.APP && action.data.isNotEmpty()) {
@@ -446,6 +473,10 @@ class MainActivity : AppCompatActivity() {
                 itemBinding.ivActionIcon.setImageResource(action.type.iconRes)
             }
 
+            itemBinding.root.setOnClickListener {
+                showAddActionDialog(layerNum, action)
+            }
+
             itemBinding.btnDeleteAction.setOnClickListener {
                 actions.remove(action)
                 saveConfig()
@@ -456,7 +487,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showAddActionDialog(layerNum: Int) {
+    private fun showAddActionDialog(layerNum: Int, existingAction: PieAction? = null) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_action, null)
         val tvTitle = dialogView.findViewById<TextView>(R.id.tvDialogTitle)
         val rbSystem = dialogView.findViewById<RadioButton>(R.id.rbSystem)
@@ -468,6 +499,7 @@ class MainActivity : AppCompatActivity() {
         val layoutUrl = dialogView.findViewById<LinearLayout>(R.id.layoutUrl)
 
         val spinnerSystem = dialogView.findViewById<Spinner>(R.id.spinnerSystemActions)
+        val spinnerSecondary = dialogView.findViewById<Spinner>(R.id.spinnerSecondaryAction)
         val etSearchApp = dialogView.findViewById<EditText>(R.id.etSearchApp)
         val rvApps = dialogView.findViewById<RecyclerView>(R.id.rvAppsList)
 
@@ -479,7 +511,7 @@ class MainActivity : AppCompatActivity() {
             2 -> "Middle Ring"
             else -> "Outer Ring"
         }
-        tvTitle.text = "Add Action to $ringName"
+        tvTitle.text = if (existingAction == null) "Add Action to $ringName" else "Edit Action in $ringName"
 
         // Setup System Spinner
         val systemActionTypes = listOf(
@@ -500,6 +532,11 @@ class MainActivity : AppCompatActivity() {
         val systemLabels = systemActionTypes.map { it.defaultLabel }
         val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, systemLabels)
         spinnerSystem.adapter = spinnerAdapter
+
+        // Setup Secondary Trigger Spinner
+        val secondaryOptions = listOf("None (Single Action)") + systemLabels
+        val secondaryAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, secondaryOptions)
+        spinnerSecondary.adapter = secondaryAdapter
 
         // Radio button toggle
         rbSystem.setOnCheckedChangeListener { _, isChecked ->
@@ -538,7 +575,9 @@ class MainActivity : AppCompatActivity() {
             .sortedBy { it.label.lowercase() }
 
         var filteredApps = installedApps.toList()
-        var selectedApp: AppEntry? = null
+        var selectedApp: AppEntry? = if (existingAction?.type == ActionType.APP) {
+            installedApps.firstOrNull { it.packageName == existingAction.data }
+        } else null
 
         val appAdapter = AppPickerAdapter(filteredApps) { app ->
             selectedApp = app
@@ -560,9 +599,37 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
+        // Pre-populate if editing existing action
+        if (existingAction != null) {
+            when (existingAction.type) {
+                ActionType.APP -> {
+                    rbApp.isChecked = true
+                }
+                ActionType.URL -> {
+                    rbUrl.isChecked = true
+                    etWebUrl.setText(existingAction.data)
+                    etWebLabel.setText(existingAction.label)
+                }
+                else -> {
+                    rbSystem.isChecked = true
+                    val sysIdx = systemActionTypes.indexOf(existingAction.type)
+                    if (sysIdx != -1) spinnerSystem.setSelection(sysIdx)
+                }
+            }
+
+            val sec = existingAction.secondaryAction
+            if (sec != null) {
+                val secIdx = systemActionTypes.indexOf(sec.type)
+                if (secIdx != -1) {
+                    spinnerSecondary.setSelection(secIdx + 1)
+                }
+            }
+        }
+
+        val positiveBtnLabel = if (existingAction == null) "Add" else "Save"
         val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
-            .setPositiveButton("Add", null) // Override later to prevent auto-dismiss on error
+            .setPositiveButton(positiveBtnLabel, null)
             .setNegativeButton("Cancel", null)
             .create()
 
@@ -580,13 +647,13 @@ class MainActivity : AppCompatActivity() {
                 else -> PieConfig.MAX_LAYER3
             }
 
-            if (targetList.size >= maxLimit) {
+            if (existingAction == null && targetList.size >= maxLimit) {
                 Toast.makeText(this, "Maximum limit reached for this ring", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
                 return@setOnClickListener
             }
 
-            val newAction: PieAction? = when {
+            val primaryAction: PieAction? = when {
                 rbSystem.isChecked -> {
                     val idx = spinnerSystem.selectedItemPosition
                     val selectedType = systemActionTypes[idx]
@@ -614,8 +681,27 @@ class MainActivity : AppCompatActivity() {
                 else -> null
             }
 
-            if (newAction != null) {
-                targetList.add(newAction)
+            val secPos = spinnerSecondary.selectedItemPosition
+            val secondaryAction: PieAction? = if (secPos > 0) {
+                val secType = systemActionTypes[secPos - 1]
+                PieAction(type = secType, label = secType.defaultLabel)
+            } else null
+
+            if (primaryAction != null) {
+                val finalAction = primaryAction.copy(
+                    id = existingAction?.id ?: primaryAction.id,
+                    secondaryAction = secondaryAction
+                )
+                if (existingAction != null) {
+                    val idx = targetList.indexOf(existingAction)
+                    if (idx != -1) {
+                        targetList[idx] = finalAction
+                    } else {
+                        targetList.add(finalAction)
+                    }
+                } else {
+                    targetList.add(finalAction)
+                }
                 saveConfig()
                 renderRingActions()
                 dialog.dismiss()

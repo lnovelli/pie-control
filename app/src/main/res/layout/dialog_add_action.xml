@@ -137,4 +137,22 @@
         </com.google.android.material.textfield.TextInputLayout>
     </LinearLayout>
 
+    <!-- Secondary Action (Long-press / Second trigger) -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Secondary Action (Long-Press Trigger - Optional):"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="6dp" />
+
+    <Spinner
+        android:id="@+id/spinnerSecondaryAction"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_card"
+        android:paddingHorizontal="12dp"
+        android:layout_marginBottom="16dp" />
+
 </LinearLayout>

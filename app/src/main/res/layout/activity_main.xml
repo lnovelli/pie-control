@@ -376,6 +376,24 @@
                     android:valueTo="100"
                     android:stepSize="5" />
 
+                <!-- Inner Ring Distance from Finger Slider -->
+                <TextView
+                    android:id="@+id/tvInnerRadiusLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Distance from Finger: 60 dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginTop="4dp" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/sliderInnerRadius"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:valueFrom="20"
+                    android:valueTo="140"
+                    android:stepSize="5" />
+
                 <!-- Haptic Feedback Toggle -->
                 <LinearLayout
                     android:layout_width="match_parent"

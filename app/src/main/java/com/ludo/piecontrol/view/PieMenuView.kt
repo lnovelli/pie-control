@@ -2,7 +2,6 @@ package com.ludo.piecontrol.view
 
 import android.content.Context
 import android.graphics.*
-import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -11,7 +10,6 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
-import com.ludo.piecontrol.R
 import com.ludo.piecontrol.model.ActionType
 import com.ludo.piecontrol.model.PieAction
 import com.ludo.piecontrol.model.PieConfig
@@ -51,7 +49,7 @@ class PieMenuView @JvmOverloads constructor(
     }
 
     // Geometry parameters (in pixels)
-    private var r0: Float = 0f // Inner deadzone
+    private var r0: Float = 0f // Configurable inner deadzone (gap from finger)
     private var r1: Float = 0f // Layer 1 outer
     private var r2: Float = 0f // Layer 2 outer
     private var r3: Float = 0f // Layer 3 outer
@@ -83,16 +81,26 @@ class PieMenuView @JvmOverloads constructor(
     private val innerRect = RectF()
     private val outerRect = RectF()
 
-    // Hover state
+    // Hover state & Secondary action tracking
     private var hoveredLayer: Int = -1 // 1, 2, 3 or -1
     private var hoveredIndex: Int = -1
+    private var isSecondaryArmed: Boolean = false
 
     // Icon Cache
     private val iconCache = mutableMapOf<String, Bitmap>()
 
-    // Safety watchdog: ensure overlay never stays permanently if an event is dropped
+    // Watchdogs & Long-Press Timer
     private val safetyDismissRunnable = Runnable {
         hide()
+    }
+
+    private val secondaryArmRunnable = Runnable {
+        val action = getHoveredAction()
+        if (action?.secondaryAction != null) {
+            isSecondaryArmed = true
+            performHaptic(long = true)
+            invalidate()
+        }
     }
 
     init {
@@ -105,10 +113,14 @@ class PieMenuView @JvmOverloads constructor(
         val scale = (config.pieScalePercent / 100f).coerceIn(0.5f, 2.0f)
         val alphaFloat = (config.pieAlphaPercent / 100f).coerceIn(0.1f, 1.0f)
 
-        r0 = 40f * density * scale
-        r1 = 100f * density * scale
-        r2 = 165f * density * scale
-        r3 = 230f * density * scale
+        // Configurable distance of the innermost ring from the finger
+        val innerDistDp = config.innerRadiusDp.coerceIn(20, 160).toFloat()
+        val layerThicknessDp = 58f
+
+        r0 = innerDistDp * density * scale
+        r1 = r0 + (layerThicknessDp * density * scale)
+        r2 = r1 + (layerThicknessDp * density * scale)
+        r3 = r2 + (layerThicknessDp * density * scale)
 
         // Background Color with Configured Alpha
         val baseBg = parseColorSafe(config.backgroundColorHex, Color.parseColor("#141425"))
@@ -121,7 +133,7 @@ class PieMenuView @JvmOverloads constructor(
         sliceHighlightPaint.color = Color.argb(highAlpha, Color.red(baseHighlight), Color.green(baseHighlight), Color.blue(baseHighlight))
 
         centerGlowPaint.color = Color.argb(
-            (80 * alphaFloat).toInt(),
+            (70 * alphaFloat).toInt(),
             Color.red(baseHighlight),
             Color.green(baseHighlight),
             Color.blue(baseHighlight)
@@ -146,18 +158,20 @@ class PieMenuView @JvmOverloads constructor(
         this.currentEdge = edge
         this.hoveredLayer = -1
         this.hoveredIndex = -1
-        updatePaints()
-        visibility = VISIBLE
-
-        // Arm safety timeout (auto-dismiss if idle for 4 seconds)
+        this.isSecondaryArmed = false
+        removeCallbacks(secondaryArmRunnable)
         removeCallbacks(safetyDismissRunnable)
         postDelayed(safetyDismissRunnable, 4000)
 
+        updatePaints()
+        visibility = VISIBLE
         invalidate()
     }
 
     fun hide() {
         removeCallbacks(safetyDismissRunnable)
+        removeCallbacks(secondaryArmRunnable)
+        isSecondaryArmed = false
         visibility = GONE
         hoveredLayer = -1
         hoveredIndex = -1
@@ -169,7 +183,6 @@ class PieMenuView @JvmOverloads constructor(
     }
 
     fun handleMotionEvent(event: MotionEvent): Boolean {
-        // Reset safety watchdog on any touch event
         removeCallbacks(safetyDismissRunnable)
         postDelayed(safetyDismissRunnable, 3000)
 
@@ -182,10 +195,17 @@ class PieMenuView @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_UP -> {
+                removeCallbacks(safetyDismissRunnable)
+                removeCallbacks(secondaryArmRunnable)
                 try {
                     updateHover(event.rawX, event.rawY)
-                    val actionToTrigger = getHoveredAction()
-                    if (actionToTrigger != null) {
+                    val action = getHoveredAction()
+                    if (action != null) {
+                        val actionToTrigger = if (isSecondaryArmed && action.secondaryAction != null) {
+                            action.secondaryAction
+                        } else {
+                            action
+                        }
                         performHaptic(long = true)
                         listener?.onActionSelected(actionToTrigger)
                     }
@@ -214,7 +234,6 @@ class PieMenuView @JvmOverloads constructor(
         val hasL2 = config.layer2.isNotEmpty()
         val hasL3 = config.layer3.isNotEmpty()
 
-        // Calculate maximum active radius
         val maxR = when {
             hasL3 -> r3
             hasL2 -> r2
@@ -222,8 +241,8 @@ class PieMenuView @JvmOverloads constructor(
             else -> 0f
         }
 
+        // Inside deadzone (0..r0), nothing is hovered (gap from finger protects against accidental triggers)
         if (dist in r0..(maxR + 80f)) {
-            // Determine layer
             newLayer = when {
                 dist in r0..r1 && hasL1 -> 1
                 dist in r1..r2 && hasL2 -> 2
@@ -257,8 +276,16 @@ class PieMenuView @JvmOverloads constructor(
         if (newLayer != hoveredLayer || newIndex != hoveredIndex) {
             hoveredLayer = newLayer
             hoveredIndex = newIndex
+            isSecondaryArmed = false
+            removeCallbacks(secondaryArmRunnable)
+
             if (hoveredLayer != -1 && hoveredIndex != -1) {
                 performHaptic(long = false)
+                val action = getHoveredAction()
+                if (action?.secondaryAction != null) {
+                    // Arm secondary action after 350ms hold
+                    postDelayed(secondaryArmRunnable, 350)
+                }
             }
             invalidate()
         }
@@ -275,26 +302,21 @@ class PieMenuView @JvmOverloads constructor(
     }
 
     private fun normalizeAngle(angle: Float, edge: Edge): Float {
-        // Normalize angle to [0, 180] span pointing inwards
         return when (edge) {
             Edge.LEFT -> {
-                // Semicircle points right: angles range from -90 to +90
                 var a = angle
                 if (a < -90f) a += 360f
-                a + 90f // -90 -> 0, 0 -> 90, 90 -> 180
+                a + 90f
             }
             Edge.RIGHT -> {
-                // Semicircle points left: angles range from +90 to +270
                 var a = angle
                 if (a < 0f) a += 360f
-                // Semicircle from 90 (bottom) to 270 (top)
                 270f - a
             }
             Edge.BOTTOM -> {
-                // Semicircle points up: angles range from 180 to 360
                 var a = angle
                 if (a < 0f) a += 360f
-                a - 180f // 180 -> 0, 270 -> 90, 360 -> 180
+                a - 180f
             }
         }
     }
@@ -310,8 +332,8 @@ class PieMenuView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        // Draw center origin indicator
-        canvas.drawCircle(anchorX, anchorY, r0 * 0.75f, centerGlowPaint)
+        // Draw center origin indicator (subtle glow at touch origin)
+        canvas.drawCircle(anchorX, anchorY, minOf(r0 * 0.65f, 50f * context.resources.displayMetrics.density), centerGlowPaint)
 
         // Draw Layer 1 (Inner)
         if (config.layer1.isNotEmpty()) {
@@ -348,7 +370,6 @@ class PieMenuView @JvmOverloads constructor(
         for (i in 0 until count) {
             val isHovered = (hoveredLayer == layerNumber && hoveredIndex == i)
 
-            // Adjust angle according to edge direction
             val startAngle = if (currentEdge == Edge.RIGHT) {
                 baseStartAngle + (count - 1 - i) * sliceAngle + (sliceGapDegrees / 2f)
             } else {
@@ -367,37 +388,79 @@ class PieMenuView @JvmOverloads constructor(
             canvas.drawPath(arcPath, paint)
             canvas.drawPath(arcPath, sliceBorderPaint)
 
-            // Draw Icon & Label at Sector Center
-            val midAngle = startAngle + (sweepAngle / 2f)
-            val midR = (innerR + outerR) / 2f
-            val rad = Math.toRadians(midAngle.toDouble())
-            val iconCenterX = (anchorX + midR * cos(rad)).toFloat()
-            val iconCenterY = (anchorY + midR * sin(rad)).toFloat()
-
+            // Draw Action Icons (single centered or primary + secondary)
             val action = actions[i]
-            drawActionIcon(canvas, action, iconCenterX, iconCenterY, isHovered)
+            drawActionIcons(canvas, action, innerR, outerR, startAngle, sweepAngle, isHovered)
         }
     }
 
-    private fun drawActionIcon(
+    private fun drawActionIcons(
         canvas: Canvas,
         action: PieAction,
-        cx: Float,
-        cy: Float,
+        innerR: Float,
+        outerR: Float,
+        startAngle: Float,
+        sweepAngle: Float,
         isHovered: Boolean
     ) {
-        val iconSize = (r1 - r0) * 0.45f * (if (isHovered) 1.15f else 1.0f)
-        val bitmap = getActionBitmap(action, iconSize.toInt())
-        if (bitmap != null) {
-            val left = cx - (bitmap.width / 2f)
-            val top = cy - (bitmap.height / 2f)
-            canvas.drawBitmap(bitmap, left, top, null)
+        val midAngle = startAngle + (sweepAngle / 2f)
+        val rad = Math.toRadians(midAngle.toDouble())
+        val midR = (innerR + outerR) / 2f
+        val thickness = outerR - innerR
+
+        val secondary = action.secondaryAction
+        val defaultIconColor = parseColorSafe(config.iconColorHex, Color.WHITE)
+        val highlightColor = parseColorSafe(config.highlightColorHex, Color.parseColor("#00E676"))
+
+        if (secondary == null) {
+            // SINGLE ACTION: perfectly centered in the slice button
+            val cx = (anchorX + midR * cos(rad)).toFloat()
+            val cy = (anchorY + midR * sin(rad)).toFloat()
+
+            val iconSize = (thickness * 0.44f * (if (isHovered) 1.15f else 1.0f)).toInt()
+            val tintColor = if (isHovered) highlightColor else defaultIconColor
+            val bitmap = getActionBitmap(action, iconSize, tintColor)
+            if (bitmap != null) {
+                canvas.drawBitmap(bitmap, cx - (bitmap.width / 2f), cy - (bitmap.height / 2f), null)
+            }
+        } else {
+            // TWO ACTIONS: primary trigger (bigger) and secondary trigger (slightly smaller) close to each other
+            val rPrimary = midR - (thickness * 0.15f)
+            val rSecondary = midR + (thickness * 0.19f)
+
+            val cxPrimary = (anchorX + rPrimary * cos(rad)).toFloat()
+            val cyPrimary = (anchorY + rPrimary * sin(rad)).toFloat()
+
+            val cxSec = (anchorX + rSecondary * cos(rad)).toFloat()
+            val cySec = (anchorY + rSecondary * sin(rad)).toFloat()
+
+            val isSecArmed = isHovered && isSecondaryArmed
+            val isPrimFocused = isHovered && !isSecondaryArmed
+
+            val primarySize = (thickness * (if (isPrimFocused) 0.42f else 0.36f)).toInt()
+            val secSize = (thickness * (if (isSecArmed) 0.33f else 0.25f)).toInt()
+
+            val primaryTint = if (isPrimFocused) highlightColor else defaultIconColor
+            val secTint = if (isSecArmed) highlightColor else defaultIconColor
+            val secAlpha = if (isSecArmed) 255 else 190
+
+            // Draw first trigger (bigger icon)
+            val primBitmap = getActionBitmap(action, primarySize, primaryTint)
+            if (primBitmap != null) {
+                canvas.drawBitmap(primBitmap, cxPrimary - (primBitmap.width / 2f), cyPrimary - (primBitmap.height / 2f), null)
+            }
+
+            // Draw secondary trigger (slightly smaller icon close to primary)
+            val secBitmap = getActionBitmap(secondary, secSize, secTint, alpha = secAlpha)
+            if (secBitmap != null) {
+                canvas.drawBitmap(secBitmap, cxSec - (secBitmap.width / 2f), cySec - (secBitmap.height / 2f), null)
+            }
         }
     }
 
-    private fun getActionBitmap(action: PieAction, sizePx: Int): Bitmap? {
-        val safeSize = sizePx.coerceAtLeast(32)
-        val cacheKey = "${action.type.name}_${action.data}_$safeSize"
+    private fun getActionBitmap(action: PieAction, sizePx: Int, tintColor: Int, alpha: Int = 255): Bitmap? {
+        val safeSize = sizePx.coerceAtLeast(24)
+        val cacheKey = "${action.type.name}_${action.data}_${safeSize}_${tintColor}_$alpha"
         iconCache[cacheKey]?.let { return it }
 
         val bitmap = Bitmap.createBitmap(safeSize, safeSize, Bitmap.Config.ARGB_8888)
@@ -407,6 +470,7 @@ class PieMenuView @JvmOverloads constructor(
             try {
                 val appIcon = context.packageManager.getApplicationIcon(action.data)
                 appIcon.setBounds(0, 0, safeSize, safeSize)
+                appIcon.alpha = alpha
                 appIcon.draw(canvas)
                 iconCache[cacheKey] = bitmap
                 return bitmap
@@ -415,12 +479,17 @@ class PieMenuView @JvmOverloads constructor(
             }
         }
 
-        // Vector Drawable with Tint
+        // Vector Drawable with Tint and Alpha
         val drawableRes = action.type.iconRes
         val drawable = ContextCompat.getDrawable(context, drawableRes)
         if (drawable != null) {
-            val iconColor = parseColorSafe(config.iconColorHex, Color.WHITE)
-            drawable.setTint(iconColor)
+            val tinted = Color.argb(
+                alpha,
+                Color.red(tintColor),
+                Color.green(tintColor),
+                Color.blue(tintColor)
+            )
+            drawable.setTint(tinted)
             drawable.setBounds(0, 0, safeSize, safeSize)
             drawable.draw(canvas)
             iconCache[cacheKey] = bitmap
@@ -445,7 +514,7 @@ class PieMenuView @JvmOverloads constructor(
                 vibrator.vibrate(if (long) 35 else 12)
             }
         } catch (e: Exception) {
-            // Haptic failure handled silently
+            // Handled gracefully
         }
     }
 }
