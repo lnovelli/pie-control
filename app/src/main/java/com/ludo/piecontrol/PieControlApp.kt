@@ -10,6 +10,7 @@ class PieControlApp : Application() {
 
     companion object {
         const val CHANNEL_ID = "pie_control_service_channel"
+        const val UPDATE_CHANNEL_ID = "pie_control_update_channel"
         lateinit var instance: PieControlApp
             private set
     }
@@ -17,12 +18,12 @@ class PieControlApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        createNotificationChannel()
+        createNotificationChannels()
     }
 
-    private fun createNotificationChannel() {
+    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 "PieControl Service",
                 NotificationManager.IMPORTANCE_LOW
@@ -30,8 +31,18 @@ class PieControlApp : Application() {
                 description = "Keeps PieControl edge trigger gesture active"
                 setShowBadge(false)
             }
+
+            val updateChannel = NotificationChannel(
+                UPDATE_CHANNEL_ID,
+                "App Updates",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for PieControl updates"
+            }
+
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(serviceChannel)
+            manager.createNotificationChannel(updateChannel)
         }
     }
 }

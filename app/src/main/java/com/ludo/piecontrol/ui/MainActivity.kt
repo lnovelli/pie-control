@@ -89,6 +89,20 @@ class MainActivity : AppCompatActivity() {
         setupPermissionsUi()
         bindConfigToUi()
         setupListeners()
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra("trigger_update_download", false) == true) {
+            val url = intent.getStringExtra("update_download_url") ?: com.ludo.piecontrol.update.AppUpdateManager.DEFAULT_APK_URL
+            val ver = intent.getStringExtra("update_version_name") ?: "New Version"
+            startUpdateDownload(url, ver)
+        }
     }
 
     override fun onResume() {
@@ -186,6 +200,11 @@ class MainActivity : AppCompatActivity() {
         binding.tvPieAlphaLabel.text = "Opacity: ${config.pieAlphaPercent}%"
 
         binding.switchHaptic.isChecked = config.hapticFeedback
+
+        // App Version
+        val versionName = com.ludo.piecontrol.update.AppUpdateManager.getCurrentVersionName(this)
+        val versionCode = com.ludo.piecontrol.update.AppUpdateManager.getCurrentVersionCode(this)
+        binding.tvAppVersion.text = "PieControl v$versionName (Build $versionCode)"
 
         // Rings
         renderRingActions()
@@ -303,6 +322,76 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+
+        // App Updates
+        binding.btnCheckUpdate.setOnClickListener {
+            performCheckUpdate()
+        }
+    }
+
+    private fun performCheckUpdate() {
+        val currentVerName = com.ludo.piecontrol.update.AppUpdateManager.getCurrentVersionName(this)
+        binding.tvUpdateStatus.text = "Checking server for updates..."
+        binding.tvUpdateStatus.visibility = View.VISIBLE
+        binding.progressBarUpdate.isIndeterminate = true
+        binding.progressBarUpdate.visibility = View.VISIBLE
+        binding.btnCheckUpdate.isEnabled = false
+
+        com.ludo.piecontrol.update.AppUpdateManager.checkForUpdates(this) { hasUpdate, _, remoteVersion, downloadUrl, notes, error ->
+            binding.progressBarUpdate.visibility = View.GONE
+            binding.btnCheckUpdate.isEnabled = true
+
+            if (error != null) {
+                binding.tvUpdateStatus.text = "Update check failed: $error"
+                Toast.makeText(this, "Could not check for updates: $error", Toast.LENGTH_SHORT).show()
+                return@checkForUpdates
+            }
+
+            if (hasUpdate) {
+                binding.tvUpdateStatus.text = "Update available: v$remoteVersion"
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("Update Available")
+                    .setMessage("Version $remoteVersion is available (Current: v$currentVerName).\n\nRelease notes:\n$notes\n\nDo you want to download and install it?")
+                    .setPositiveButton("Update Now") { _, _ ->
+                        startUpdateDownload(downloadUrl, remoteVersion)
+                    }
+                    .setNegativeButton("Later", null)
+                    .show()
+            } else {
+                binding.tvUpdateStatus.text = "App is up to date (v$currentVerName)"
+                Toast.makeText(this, "PieControl is up to date (v$currentVerName)", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun startUpdateDownload(downloadUrl: String, version: String) {
+        binding.tvUpdateStatus.text = "Starting download..."
+        binding.tvUpdateStatus.visibility = View.VISIBLE
+        binding.progressBarUpdate.isIndeterminate = false
+        binding.progressBarUpdate.progress = 0
+        binding.progressBarUpdate.visibility = View.VISIBLE
+        binding.btnCheckUpdate.isEnabled = false
+
+        com.ludo.piecontrol.update.AppUpdateManager.downloadAndPromptInstall(
+            context = this,
+            downloadUrl = downloadUrl,
+            title = "PieControl v$version Update",
+            onProgress = { progress ->
+                binding.progressBarUpdate.progress = progress
+                binding.tvUpdateStatus.text = "Downloading: $progress%"
+            },
+            onError = { error ->
+                binding.progressBarUpdate.visibility = View.GONE
+                binding.tvUpdateStatus.text = "Download failed: $error"
+                binding.btnCheckUpdate.isEnabled = true
+                Toast.makeText(this, "Update download failed: $error", Toast.LENGTH_LONG).show()
+            },
+            onSuccess = {
+                binding.progressBarUpdate.visibility = View.GONE
+                binding.tvUpdateStatus.text = "Download complete. Launching installer..."
+                binding.btnCheckUpdate.isEnabled = true
+            }
+        )
     }
 
     private fun renderRingActions() {
@@ -405,7 +494,8 @@ class MainActivity : AppCompatActivity() {
             ActionType.LOCK_SCREEN,
             ActionType.VOLUME_UP,
             ActionType.VOLUME_DOWN,
-            ActionType.FLASHLIGHT
+            ActionType.FLASHLIGHT,
+            ActionType.CHECK_UPDATES
         )
         val systemLabels = systemActionTypes.map { it.defaultLabel }
         val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, systemLabels)

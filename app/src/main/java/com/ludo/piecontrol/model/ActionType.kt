@@ -15,6 +15,7 @@ enum class ActionType(val defaultLabel: String, val iconRes: Int) {
     VOLUME_UP("Volume +", R.drawable.ic_action_volume_up),
     VOLUME_DOWN("Volume -", R.drawable.ic_action_volume_down),
     FLASHLIGHT("Flashlight", R.drawable.ic_action_flashlight),
+    CHECK_UPDATES("Check Updates", R.drawable.ic_action_update),
     APP("Open App", R.drawable.ic_action_app),
     URL("Open URL", R.drawable.ic_action_web),
     SHORTCUT("Shortcut", R.drawable.ic_action_shortcut);

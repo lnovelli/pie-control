@@ -57,4 +57,7 @@
     <string name="action_app">Open App</string>
     <string name="action_url">Open Website</string>
     <string name="action_shortcut">Android Shortcut</string>
+    <string name="section_about">App Updates &amp; About</string>
+    <string name="check_updates">Check for Updates</string>
+    <string name="action_check_updates">Check Updates</string>
 </resources>

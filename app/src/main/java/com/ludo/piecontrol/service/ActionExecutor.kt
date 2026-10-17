@@ -63,6 +63,10 @@ object ActionExecutor {
                 toggleFlashlight(context)
             }
 
+            ActionType.CHECK_UPDATES -> {
+                com.ludo.piecontrol.update.AppUpdateManager.checkAndNotifyUpdate(context, autoDownload = false)
+            }
+
             ActionType.APP -> {
                 launchApp(context, action.data)
             }
