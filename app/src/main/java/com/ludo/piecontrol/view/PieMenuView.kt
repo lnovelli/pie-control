@@ -33,6 +33,7 @@ class PieMenuView @JvmOverloads constructor(
     var config: PieConfig = PieConfig.createDefault()
         set(value) {
             field = value
+            iconCache.clear()
             updatePaints()
             invalidate()
         }
@@ -441,13 +442,15 @@ class PieMenuView @JvmOverloads constructor(
         val secondary = action.secondaryAction
         val defaultIconColor = parseColorSafe(config.iconColorHex, Color.WHITE)
         val highlightColor = parseColorSafe(config.highlightColorHex, Color.parseColor("#00E676"))
+        val iconScale = (config.iconScalePercent.coerceIn(50, 200) / 100f)
 
         if (secondary == null) {
             // SINGLE ACTION: perfectly centered in the slice button
             val cx = (anchorX + midR * cos(rad)).toFloat()
             val cy = (anchorY + midR * sin(rad)).toFloat()
 
-            val iconSize = (thickness * 0.44f * (if (isHovered) 1.15f else 1.0f)).toInt()
+            val baseSize = thickness * 0.44f * iconScale
+            val iconSize = (baseSize * (if (isHovered) 1.15f else 1.0f)).toInt()
             val tintColor = if (isHovered) highlightColor else defaultIconColor
             val bitmap = getActionBitmap(action, iconSize, tintColor)
             if (bitmap != null) {
@@ -473,8 +476,8 @@ class PieMenuView @JvmOverloads constructor(
             val isSecArmed = isHovered && isSecondaryArmed
             val isPrimFocused = isHovered && !isSecondaryArmed
 
-            val primarySize = (thickness * (if (isPrimFocused) 0.42f else 0.36f)).toInt()
-            val secSize = (thickness * (if (isSecArmed) 0.32f else 0.24f)).toInt()
+            val primarySize = (thickness * (if (isPrimFocused) 0.42f else 0.36f) * iconScale).toInt()
+            val secSize = (thickness * (if (isSecArmed) 0.32f else 0.24f) * iconScale).toInt()
 
             val primaryTint = if (isPrimFocused) highlightColor else defaultIconColor
             val secTint = if (isSecArmed) highlightColor else defaultIconColor

@@ -231,6 +231,9 @@ class MainActivity : AppCompatActivity() {
         binding.sliderPieScale.value = config.pieScalePercent.toFloat().coerceIn(60f, 150f)
         binding.tvPieScaleLabel.text = "Semicircle Scale: ${config.pieScalePercent}%"
 
+        binding.sliderIconScale.value = config.iconScalePercent.toFloat().coerceIn(60f, 180f)
+        binding.tvIconScaleLabel.text = "Icon Scale: ${config.iconScalePercent}%"
+
         binding.sliderPieAlpha.value = config.pieAlphaPercent.toFloat().coerceIn(30f, 100f)
         binding.tvPieAlphaLabel.text = "Opacity: ${config.pieAlphaPercent}%"
 
@@ -305,6 +308,12 @@ class MainActivity : AppCompatActivity() {
         binding.sliderPieScale.addOnChangeListener { _, value, _ ->
             config.pieScalePercent = value.toInt()
             binding.tvPieScaleLabel.text = "Semicircle Scale: ${config.pieScalePercent}%"
+            saveConfig()
+        }
+
+        binding.sliderIconScale.addOnChangeListener { _, value, _ ->
+            config.iconScalePercent = value.toInt()
+            binding.tvIconScaleLabel.text = "Icon Scale: ${config.iconScalePercent}%"
             saveConfig()
         }
 

@@ -18,6 +18,7 @@ data class PieConfig(
     var iconColorHex: String = "#FFFFFFFF",
     var pieAlphaPercent: Int = 90,
     var pieScalePercent: Int = 100,
+    var iconScalePercent: Int = 100,
     var innerRadiusDp: Int = 60,
     var shortHoverDelayMs: Int = 0,
     var secondaryHoldDelayMs: Int = 350,
@@ -48,6 +49,7 @@ data class PieConfig(
                 iconColorHex = "#FFFFFFFF",
                 pieAlphaPercent = 90,
                 pieScalePercent = 100,
+                iconScalePercent = 100,
                 innerRadiusDp = 60,
                 shortHoverDelayMs = 0,
                 secondaryHoldDelayMs = 350,
@@ -111,6 +113,7 @@ data class PieConfig(
                 iconColorHex = json.optString("iconColorHex", "#FFFFFFFF"),
                 pieAlphaPercent = json.optInt("pieAlphaPercent", 90),
                 pieScalePercent = json.optInt("pieScalePercent", 100),
+                iconScalePercent = json.optInt("iconScalePercent", 100),
                 innerRadiusDp = json.optInt("innerRadiusDp", 60),
                 shortHoverDelayMs = json.optInt("shortHoverDelayMs", 0),
                 secondaryHoldDelayMs = json.optInt("secondaryHoldDelayMs", 350),
@@ -165,6 +168,7 @@ data class PieConfig(
             put("iconColorHex", iconColorHex)
             put("pieAlphaPercent", pieAlphaPercent)
             put("pieScalePercent", pieScalePercent)
+            put("iconScalePercent", iconScalePercent)
             put("innerRadiusDp", innerRadiusDp)
             put("shortHoverDelayMs", shortHoverDelayMs)
             put("secondaryHoldDelayMs", secondaryHoldDelayMs)

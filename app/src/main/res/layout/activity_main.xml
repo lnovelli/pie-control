@@ -359,6 +359,23 @@
                     android:valueTo="150"
                     android:stepSize="5" />
 
+                <!-- Icon Scale Slider -->
+                <TextView
+                    android:id="@+id/tvIconScaleLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Icon Scale: 100%"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/sliderIconScale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:valueFrom="60"
+                    android:valueTo="180"
+                    android:stepSize="5" />
+
                 <!-- Alpha / Transparency Slider -->
                 <TextView
                     android:id="@+id/tvPieAlphaLabel"
