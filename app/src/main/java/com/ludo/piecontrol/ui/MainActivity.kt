@@ -205,6 +205,13 @@ class MainActivity : AppCompatActivity() {
         binding.sliderInnerRadius.value = config.innerRadiusDp.toFloat().coerceIn(20f, 140f)
         binding.tvInnerRadiusLabel.text = "Distance from Finger: ${config.innerRadiusDp} dp"
 
+        // Timing Sliders
+        binding.sliderShortHoverDelay.value = config.shortHoverDelayMs.toFloat().coerceIn(0f, 300f)
+        binding.tvShortHoverLabel.text = if (config.shortHoverDelayMs == 0) "Short Hover Activation: Instant (0 ms)" else "Short Hover Activation: ${config.shortHoverDelayMs} ms"
+
+        binding.sliderSecondaryHoldDelay.value = config.secondaryHoldDelayMs.toFloat().coerceIn(150f, 750f)
+        binding.tvSecondaryHoldLabel.text = "Secondary Action Hold Trigger: ${config.secondaryHoldDelayMs} ms"
+
         binding.switchHaptic.isChecked = config.hapticFeedback
 
         // App Version
@@ -277,6 +284,18 @@ class MainActivity : AppCompatActivity() {
         binding.sliderInnerRadius.addOnChangeListener { _, value, _ ->
             config.innerRadiusDp = value.toInt()
             binding.tvInnerRadiusLabel.text = "Distance from Finger: ${config.innerRadiusDp} dp"
+            saveConfig()
+        }
+
+        binding.sliderShortHoverDelay.addOnChangeListener { _, value, _ ->
+            config.shortHoverDelayMs = value.toInt()
+            binding.tvShortHoverLabel.text = if (config.shortHoverDelayMs == 0) "Short Hover Activation: Instant (0 ms)" else "Short Hover Activation: ${config.shortHoverDelayMs} ms"
+            saveConfig()
+        }
+
+        binding.sliderSecondaryHoldDelay.addOnChangeListener { _, value, _ ->
+            config.secondaryHoldDelayMs = value.toInt()
+            binding.tvSecondaryHoldLabel.text = "Secondary Action Hold Trigger: ${config.secondaryHoldDelayMs} ms"
             saveConfig()
         }
 
@@ -780,22 +799,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val positiveBtnLabel = if (existingAction == null) "Add" else "Save Changes"
         val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
-            .setPositiveButton(positiveBtnLabel, null)
-            .setNegativeButton("Cancel", null)
             .create()
 
         dialog.show()
 
         // Set generous spacious dialog dimensions to prevent content clipping
         val displayMetrics = resources.displayMetrics
-        val dialogWidth = (displayMetrics.widthPixels * 0.94).toInt()
-        val dialogHeight = (displayMetrics.heightPixels * 0.88).toInt()
+        val dialogWidth = (displayMetrics.widthPixels * 0.96).toInt()
+        val dialogHeight = (displayMetrics.heightPixels * 0.90).toInt()
         dialog.window?.setLayout(dialogWidth, dialogHeight)
 
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        val btnCancel = dialogView.findViewById<Button>(R.id.btnDialogCancel)
+        val btnSave = dialogView.findViewById<Button>(R.id.btnDialogSave)
+        btnSave.text = if (existingAction == null) "Add Action" else "Save Changes"
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnSave.setOnClickListener {
             val targetList = when (layerNum) {
                 1 -> config.layer1
                 2 -> config.layer2
@@ -974,16 +998,22 @@ class MainActivity : AppCompatActivity() {
 
         val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
-            .setPositiveButton("Save", null)
-            .setNegativeButton("Cancel", null)
             .create()
 
         dialog.show()
 
         val displayMetrics = resources.displayMetrics
-        dialog.window?.setLayout((displayMetrics.widthPixels * 0.94).toInt(), (displayMetrics.heightPixels * 0.88).toInt())
+        dialog.window?.setLayout((displayMetrics.widthPixels * 0.96).toInt(), (displayMetrics.heightPixels * 0.90).toInt())
 
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        val btnCancel = dialogView.findViewById<Button>(R.id.btnFolderCancel)
+        val btnSave = dialogView.findViewById<Button>(R.id.btnFolderSave)
+        btnSave.text = if (existingFolder == null) "Create Folder" else "Save Folder"
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnSave.setOnClickListener {
             val name = etName.text?.toString()?.trim() ?: ""
             if (name.isEmpty()) {
                 Toast.makeText(this, "Please enter a folder name", Toast.LENGTH_SHORT).show()

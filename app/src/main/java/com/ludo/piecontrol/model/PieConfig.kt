@@ -19,6 +19,8 @@ data class PieConfig(
     var pieAlphaPercent: Int = 90,
     var pieScalePercent: Int = 100,
     var innerRadiusDp: Int = 60,
+    var shortHoverDelayMs: Int = 0,
+    var secondaryHoldDelayMs: Int = 350,
     var hapticFeedback: Boolean = true,
     var layer1: MutableList<PieAction> = mutableListOf(),
     var layer2: MutableList<PieAction> = mutableListOf(),
@@ -47,6 +49,8 @@ data class PieConfig(
                 pieAlphaPercent = 90,
                 pieScalePercent = 100,
                 innerRadiusDp = 60,
+                shortHoverDelayMs = 0,
+                secondaryHoldDelayMs = 350,
                 hapticFeedback = true,
                 layer1 = mutableListOf(
                     PieAction(
@@ -108,6 +112,8 @@ data class PieConfig(
                 pieAlphaPercent = json.optInt("pieAlphaPercent", 90),
                 pieScalePercent = json.optInt("pieScalePercent", 100),
                 innerRadiusDp = json.optInt("innerRadiusDp", 60),
+                shortHoverDelayMs = json.optInt("shortHoverDelayMs", 0),
+                secondaryHoldDelayMs = json.optInt("secondaryHoldDelayMs", 350),
                 hapticFeedback = json.optBoolean("hapticFeedback", true)
             )
 
@@ -160,6 +166,8 @@ data class PieConfig(
             put("pieAlphaPercent", pieAlphaPercent)
             put("pieScalePercent", pieScalePercent)
             put("innerRadiusDp", innerRadiusDp)
+            put("shortHoverDelayMs", shortHoverDelayMs)
+            put("secondaryHoldDelayMs", secondaryHoldDelayMs)
             put("hapticFeedback", hapticFeedback)
 
             val arr1 = JSONArray()

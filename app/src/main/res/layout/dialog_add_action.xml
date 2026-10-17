@@ -54,7 +54,11 @@
                     android:layout_weight="1"
                     android:checked="true"
                     android:text="System"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
                     android:textColor="@color/text_primary" />
 
                 <RadioButton
@@ -63,7 +67,11 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="App"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
                     android:textColor="@color/text_primary" />
 
                 <RadioButton
@@ -72,7 +80,11 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="URL"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
                     android:textColor="@color/text_primary" />
 
                 <RadioButton
@@ -81,7 +93,11 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Folder"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
                     android:textColor="@color/text_primary" />
             </RadioGroup>
 
@@ -229,7 +245,11 @@
                         android:layout_weight="1"
                         android:checked="true"
                         android:text="System"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="2dp"
                         android:textColor="@color/text_primary" />
 
                     <RadioButton
@@ -238,7 +258,11 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="App"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="2dp"
                         android:textColor="@color/text_primary" />
 
                     <RadioButton
@@ -247,7 +271,11 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="URL"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="2dp"
                         android:textColor="@color/text_primary" />
 
                     <RadioButton
@@ -256,7 +284,11 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Folder"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="2dp"
                         android:textColor="@color/text_primary" />
                 </RadioGroup>
 
@@ -353,6 +385,33 @@
 
             </LinearLayout>
 
+        </LinearLayout>
+
+        <!-- Compact Footer Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:layout_marginTop="16dp"
+            android:paddingTop="4dp">
+
+            <Button
+                android:id="@+id/btnDialogCancel"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="Cancel"
+                android:textSize="13sp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnDialogSave"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="Save Action"
+                android:textSize="13sp" />
         </LinearLayout>
 
     </LinearLayout>

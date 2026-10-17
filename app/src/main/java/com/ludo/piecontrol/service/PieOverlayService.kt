@@ -292,11 +292,14 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
     }
 
     private var folderPopupView: View? = null
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     override fun onActionSelected(action: PieAction) {
         detachPieMenu()
         if (action.type == ActionType.FOLDER) {
-            showFolderPopup(action.data)
+            mainHandler.post {
+                showFolderPopup(action.data)
+            }
         } else {
             ActionExecutor.execute(this, action)
         }
@@ -308,10 +311,17 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     private fun showFolderPopup(folderId: String) {
         dismissFolderPopup()
-        val folder = config.folders.firstOrNull { it.id == folderId } ?: return
+        val latestConfig = prefsManager.loadConfig()
+        this.config = latestConfig
+        val folder = latestConfig.folders.firstOrNull { it.id == folderId || it.name == folderId }
+        if (folder == null) {
+            android.util.Log.e("PieOverlayService", "Folder not found with id: $folderId")
+            return
+        }
 
         try {
-            val inflater = LayoutInflater.from(this)
+            val themedContext = android.view.ContextThemeWrapper(this, R.style.Theme_PieControl)
+            val inflater = LayoutInflater.from(themedContext)
             val popupView = inflater.inflate(R.layout.view_folder_popup, null)
 
             val tvTitle = popupView.findViewById<TextView>(R.id.tvFolderHeaderTitle)
@@ -336,8 +346,8 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
             } else {
                 tvEmpty.visibility = View.GONE
                 rvActions.visibility = View.VISIBLE
-                rvActions.layoutManager = GridLayoutManager(this, 3)
-                rvActions.adapter = FolderActionAdapter(this, folder.actions) { action ->
+                rvActions.layoutManager = GridLayoutManager(themedContext, 3)
+                rvActions.adapter = FolderActionAdapter(themedContext, folder.actions) { action ->
                     dismissFolderPopup()
                     ActionExecutor.execute(this, action)
                 }
@@ -363,8 +373,9 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
             windowManager.addView(popupView, params)
             folderPopupView = popupView
+            android.util.Log.d("PieOverlayService", "Folder popup shown for ${folder.name}")
         } catch (e: Exception) {
-            // Log or fallback
+            android.util.Log.e("PieOverlayService", "Failed to show folder popup", e)
         }
     }
 

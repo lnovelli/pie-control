@@ -254,14 +254,17 @@ class PieMenuView @JvmOverloads constructor(
             else -> 0f
         }
 
-        // Inside deadzone (0..r0), nothing is hovered (gap from finger protects against accidental triggers)
-        if (dist in r0..(maxR + 80f)) {
+        // Inside deadzone (0..effectiveR0), nothing is hovered.
+        // As soon as finger enters the button area (effectiveR0), action is selected immediately!
+        val effectiveR0 = r0 * 0.88f
+        if (dist >= effectiveR0) {
             newLayer = when {
-                dist in r0..r1 && hasL1 -> 1
-                dist in r1..r2 && hasL2 -> 2
-                dist in r2..r3 && hasL3 -> 3
-                dist > r3 && hasL3 -> 3
-                dist > r2 && hasL2 && !hasL3 -> 2
+                hasL3 && dist in r2..r3 -> 3
+                hasL3 && dist > r3 -> 3
+                hasL2 && dist in r1..r2 -> 2
+                hasL2 && dist > r2 && !hasL3 -> 2
+                hasL1 && dist in effectiveR0..r1 -> 1
+                hasL1 && dist > r1 && !hasL2 && !hasL3 -> 1
                 else -> -1
             }
 
@@ -276,9 +279,11 @@ class PieMenuView @JvmOverloads constructor(
                 if (list.isNotEmpty()) {
                     val angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
                     val normAngle = normalizeAngle(angleDeg, currentEdge)
-                    if (normAngle in 0f..180f) {
+                    // Generous angular tolerance so entering anywhere in the slice button area triggers cleanly
+                    if (normAngle in -15f..195f) {
+                        val clampedAngle = normAngle.coerceIn(0f, 179.99f)
                         val sliceSpan = 180f / list.size
-                        newIndex = (normAngle / sliceSpan).toInt().coerceIn(0, list.size - 1)
+                        newIndex = (clampedAngle / sliceSpan).toInt().coerceIn(0, list.size - 1)
                     } else {
                         newLayer = -1
                     }
@@ -296,8 +301,9 @@ class PieMenuView @JvmOverloads constructor(
                 performHaptic(long = false)
                 val action = getHoveredAction()
                 if (action?.secondaryAction != null) {
-                    // Arm secondary action after 350ms hold
-                    postDelayed(secondaryArmRunnable, 350)
+                    // Arm secondary action after configured hold delay
+                    val holdDelay = config.secondaryHoldDelayMs.toLong().coerceIn(150L, 1000L)
+                    postDelayed(secondaryArmRunnable, holdDelay)
                 }
             }
             invalidate()
