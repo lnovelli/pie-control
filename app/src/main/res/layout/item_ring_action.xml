@@ -67,4 +67,14 @@
         android:tint="@color/accent_red"
         android:contentDescription="Remove Action" />
 
+    <ImageView
+        android:id="@+id/ivDragHandle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:padding="4dp"
+        android:layout_marginStart="2dp"
+        android:src="@drawable/ic_drag_handle"
+        android:tint="@color/text_secondary"
+        android:contentDescription="Drag to reorder" />
+
 </LinearLayout>

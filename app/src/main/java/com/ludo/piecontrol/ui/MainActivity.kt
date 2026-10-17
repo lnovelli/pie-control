@@ -22,6 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.ItemTouchHelper
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.ludo.piecontrol.R
 import com.ludo.piecontrol.data.PreferencesManager
@@ -405,86 +406,138 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderRingActions() {
-        // Layer 1
-        binding.tvLayer1Header.text = "Inner Ring (${config.layer1.size} / ${PieConfig.MAX_LAYER1} actions)"
-        binding.btnAddLayer1.isEnabled = config.layer1.size < PieConfig.MAX_LAYER1
-        populateLayerContainer(binding.containerLayer1, config.layer1, 1)
-
-        // Layer 2
-        binding.tvLayer2Header.text = "Middle Ring (${config.layer2.size} / ${PieConfig.MAX_LAYER2} actions)"
-        binding.btnAddLayer2.isEnabled = config.layer2.size < PieConfig.MAX_LAYER2
-        populateLayerContainer(binding.containerLayer2, config.layer2, 2)
-
-        // Layer 3
-        binding.tvLayer3Header.text = "Outer Ring (${config.layer3.size} / ${PieConfig.MAX_LAYER3} actions)"
-        binding.btnAddLayer3.isEnabled = config.layer3.size < PieConfig.MAX_LAYER3
-        populateLayerContainer(binding.containerLayer3, config.layer3, 3)
+        updateRingLayerUi(1, binding.tvLayer1Header, binding.btnAddLayer1, binding.rvLayer1, binding.tvEmptyLayer1, config.layer1)
+        updateRingLayerUi(2, binding.tvLayer2Header, binding.btnAddLayer2, binding.rvLayer2, binding.tvEmptyLayer2, config.layer2)
+        updateRingLayerUi(3, binding.tvLayer3Header, binding.btnAddLayer3, binding.rvLayer3, binding.tvEmptyLayer3, config.layer3)
     }
 
-    private fun populateLayerContainer(container: LinearLayout, actions: MutableList<PieAction>, layerNum: Int) {
-        container.removeAllViews()
+    private fun updateRingLayerUi(
+        layerNum: Int,
+        headerTv: TextView,
+        addBtn: Button,
+        recyclerView: RecyclerView,
+        emptyTv: TextView,
+        actions: MutableList<PieAction>
+    ) {
+        val maxLimit = when (layerNum) {
+            1 -> PieConfig.MAX_LAYER1
+            2 -> PieConfig.MAX_LAYER2
+            else -> PieConfig.MAX_LAYER3
+        }
+        val ringName = when (layerNum) {
+            1 -> "Inner Ring"
+            2 -> "Middle Ring"
+            else -> "Outer Ring"
+        }
+        headerTv.text = "$ringName (${actions.size} / $maxLimit actions)"
+        addBtn.isEnabled = actions.size < maxLimit
+
         if (actions.isEmpty()) {
-            val emptyTv = TextView(this).apply {
-                text = "No actions assigned to this ring"
-                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
-                textSize = 13f
-                setPadding(8, 8, 8, 8)
-            }
-            container.addView(emptyTv)
+            emptyTv.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyTv.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
+
+        setupOrUpdateAdapter(layerNum, recyclerView, actions)
+    }
+
+    private fun updateHeadersOnly() {
+        binding.tvLayer1Header.text = "Inner Ring (${config.layer1.size} / ${PieConfig.MAX_LAYER1} actions)"
+        binding.btnAddLayer1.isEnabled = config.layer1.size < PieConfig.MAX_LAYER1
+
+        binding.tvLayer2Header.text = "Middle Ring (${config.layer2.size} / ${PieConfig.MAX_LAYER2} actions)"
+        binding.btnAddLayer2.isEnabled = config.layer2.size < PieConfig.MAX_LAYER2
+
+        binding.tvLayer3Header.text = "Outer Ring (${config.layer3.size} / ${PieConfig.MAX_LAYER3} actions)"
+        binding.btnAddLayer3.isEnabled = config.layer3.size < PieConfig.MAX_LAYER3
+    }
+
+    private fun setupOrUpdateAdapter(
+        layerNum: Int,
+        recyclerView: RecyclerView,
+        actions: MutableList<PieAction>
+    ) {
+        val existingAdapter = recyclerView.adapter as? RingActionAdapter
+        if (existingAdapter != null) {
+            existingAdapter.actions = actions
+            existingAdapter.notifyDataSetChanged()
             return
         }
 
-        for (action in actions) {
-            val itemBinding = ItemRingActionBinding.inflate(layoutInflater, container, false)
-            itemBinding.tvActionLabel.text = action.label
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
-            val sec = action.secondaryAction
-            if (sec != null) {
-                itemBinding.ivSecondaryIcon.visibility = View.VISIBLE
-                if (sec.type == ActionType.APP && sec.data.isNotEmpty()) {
-                    try {
-                        val appIcon = packageManager.getApplicationIcon(sec.data)
-                        itemBinding.ivSecondaryIcon.setImageDrawable(appIcon)
-                    } catch (e: Exception) {
-                        itemBinding.ivSecondaryIcon.setImageResource(sec.type.iconRes)
-                    }
-                } else {
-                    itemBinding.ivSecondaryIcon.setImageResource(sec.type.iconRes)
-                }
-                itemBinding.tvActionSub.text = "1st: ${action.label} • 2nd: ${sec.label}"
-            } else {
-                itemBinding.ivSecondaryIcon.visibility = View.GONE
-                itemBinding.tvActionSub.text = when (action.type) {
-                    ActionType.APP -> "App: ${action.data}"
-                    ActionType.URL -> "Website: ${action.data}"
-                    ActionType.SHORTCUT -> "Shortcut"
-                    else -> "Core System Action"
-                }
-            }
-
-            if (action.type == ActionType.APP && action.data.isNotEmpty()) {
-                try {
-                    val appIcon = packageManager.getApplicationIcon(action.data)
-                    itemBinding.ivActionIcon.setImageDrawable(appIcon)
-                } catch (e: Exception) {
-                    itemBinding.ivActionIcon.setImageResource(action.type.iconRes)
-                }
-            } else {
-                itemBinding.ivActionIcon.setImageResource(action.type.iconRes)
-            }
-
-            itemBinding.root.setOnClickListener {
+        var itemTouchHelper: ItemTouchHelper? = null
+        val adapter = RingActionAdapter(
+            context = this,
+            actions = actions,
+            onActionClick = { action, _ ->
                 showAddActionDialog(layerNum, action)
-            }
-
-            itemBinding.btnDeleteAction.setOnClickListener {
-                actions.remove(action)
+            },
+            onActionDelete = { _, pos ->
+                if (pos in actions.indices) {
+                    actions.removeAt(pos)
+                    saveConfig()
+                    renderRingActions()
+                }
+            },
+            onOrderChanged = {
                 saveConfig()
-                renderRingActions()
+                updateHeadersOnly()
+            },
+            onStartDragListener = { holder ->
+                itemTouchHelper?.startDrag(holder)
+            }
+        )
+
+        val callback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+            0
+        ) {
+            override fun onMove(
+                rv: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val fromPos = viewHolder.adapterPosition
+                val toPos = target.adapterPosition
+                if (fromPos != RecyclerView.NO_POSITION && toPos != RecyclerView.NO_POSITION) {
+                    adapter.onItemMove(fromPos, toPos)
+                    return true
+                }
+                return false
             }
 
-            container.addView(itemBinding.root)
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+            override fun isLongPressDragEnabled(): Boolean = true
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    viewHolder?.itemView?.apply {
+                        animate().scaleX(1.02f).scaleY(1.02f).setDuration(120).start()
+                        alpha = 0.85f
+                        elevation = 12f
+                    }
+                }
+            }
+
+            override fun clearView(rv: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(rv, viewHolder)
+                viewHolder.itemView.apply {
+                    animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
+                    alpha = 1.0f
+                    elevation = 0f
+                }
+                adapter.onDragComplete()
+            }
         }
+
+        itemTouchHelper = ItemTouchHelper(callback)
+        itemTouchHelper.attachToRecyclerView(recyclerView)
+        recyclerView.adapter = adapter
     }
 
     private fun showAddActionDialog(layerNum: Int, existingAction: PieAction? = null) {
@@ -511,7 +564,7 @@ class MainActivity : AppCompatActivity() {
             2 -> "Middle Ring"
             else -> "Outer Ring"
         }
-        tvTitle.text = if (existingAction == null) "Add Action to $ringName" else "Edit Action in $ringName"
+        tvTitle.text = if (existingAction == null) "Add Action to $ringName" else "Reassign Action in $ringName"
 
         // Setup System Spinner
         val systemActionTypes = listOf(
@@ -579,11 +632,21 @@ class MainActivity : AppCompatActivity() {
             installedApps.firstOrNull { it.packageName == existingAction.data }
         } else null
 
-        val appAdapter = AppPickerAdapter(filteredApps) { app ->
+        val appAdapter = AppPickerAdapter(
+            items = filteredApps,
+            initialSelectedPackage = if (existingAction?.type == ActionType.APP) existingAction.data else null
+        ) { app ->
             selectedApp = app
         }
         rvApps.layoutManager = LinearLayoutManager(this)
         rvApps.adapter = appAdapter
+
+        if (selectedApp != null) {
+            val initialPos = filteredApps.indexOfFirst { it.packageName == selectedApp!!.packageName }
+            if (initialPos != -1) {
+                rvApps.scrollToPosition(initialPos)
+            }
+        }
 
         etSearchApp.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -599,19 +662,28 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
-        // Pre-populate if editing existing action
+        // Pre-populate if editing/reassigning existing action
         if (existingAction != null) {
             when (existingAction.type) {
                 ActionType.APP -> {
                     rbApp.isChecked = true
+                    layoutSystem.visibility = View.GONE
+                    layoutApp.visibility = View.VISIBLE
+                    layoutUrl.visibility = View.GONE
                 }
                 ActionType.URL -> {
                     rbUrl.isChecked = true
+                    layoutSystem.visibility = View.GONE
+                    layoutApp.visibility = View.GONE
+                    layoutUrl.visibility = View.VISIBLE
                     etWebUrl.setText(existingAction.data)
                     etWebLabel.setText(existingAction.label)
                 }
                 else -> {
                     rbSystem.isChecked = true
+                    layoutSystem.visibility = View.VISIBLE
+                    layoutApp.visibility = View.GONE
+                    layoutUrl.visibility = View.GONE
                     val sysIdx = systemActionTypes.indexOf(existingAction.type)
                     if (sysIdx != -1) spinnerSystem.setSelection(sysIdx)
                 }
@@ -626,7 +698,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val positiveBtnLabel = if (existingAction == null) "Add" else "Save"
+        val positiveBtnLabel = if (existingAction == null) "Add" else "Save Changes"
         val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
             .setPositiveButton(positiveBtnLabel, null)
@@ -693,7 +765,7 @@ class MainActivity : AppCompatActivity() {
                     secondaryAction = secondaryAction
                 )
                 if (existingAction != null) {
-                    val idx = targetList.indexOf(existingAction)
+                    val idx = targetList.indexOfFirst { it.id == existingAction.id }
                     if (idx != -1) {
                         targetList[idx] = finalAction
                     } else {
@@ -792,10 +864,13 @@ class MainActivity : AppCompatActivity() {
 
     class AppPickerAdapter(
         private var items: List<AppEntry>,
+        initialSelectedPackage: String? = null,
         private val onSelect: (AppEntry) -> Unit
     ) : RecyclerView.Adapter<AppPickerAdapter.ViewHolder>() {
 
-        private var selectedPosition = -1
+        private var selectedPosition = if (initialSelectedPackage != null) {
+            items.indexOfFirst { it.packageName == initialSelectedPackage }
+        } else -1
 
         fun updateList(newItems: List<AppEntry>) {
             items = newItems

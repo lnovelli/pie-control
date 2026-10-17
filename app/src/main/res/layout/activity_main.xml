@@ -507,12 +507,22 @@
                         android:text="+ Add" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/containerLayer1"
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvLayer1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
+                    android:nestedScrollingEnabled="false"
                     android:layout_marginTop="8dp" />
+
+                <TextView
+                    android:id="@+id/tvEmptyLayer1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No actions assigned to this ring"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:padding="8dp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <!-- Layer 2 Actions Card -->
@@ -548,12 +558,22 @@
                         android:text="+ Add" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/containerLayer2"
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvLayer2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
+                    android:nestedScrollingEnabled="false"
                     android:layout_marginTop="8dp" />
+
+                <TextView
+                    android:id="@+id/tvEmptyLayer2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No actions assigned to this ring"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:padding="8dp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <!-- Layer 3 Actions Card -->
@@ -589,12 +609,22 @@
                         android:text="+ Add" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/containerLayer3"
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvLayer3"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
+                    android:nestedScrollingEnabled="false"
                     android:layout_marginTop="8dp" />
+
+                <TextView
+                    android:id="@+id/tvEmptyLayer3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No actions assigned to this ring"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:padding="8dp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <!-- Backup & Restore Card -->
