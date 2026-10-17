@@ -51,7 +51,7 @@
                 android:layout_height="32dp"
                 android:background="@drawable/bg_circle_icon"
                 android:padding="6dp"
-                android:src="@drawable/ic_delete"
+                android:src="@drawable/ic_close"
                 android:tint="@color/text_secondary"
                 android:contentDescription="Close" />
         </LinearLayout>
