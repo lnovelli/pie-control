@@ -250,32 +250,14 @@ class PieMenuView @JvmOverloads constructor(
         val hasL3 = config.layer3.isNotEmpty()
 
         val density = context.resources.displayMetrics.density
-        // Responsive entry: compact cancel deadzone near swipe origin (only 20dp or ~35% of r0).
+        // Immediate sector entry: compact cancel deadzone near swipe origin (only 20dp or ~35% of r0).
         // Any intentional inward movement beyond this threshold selects the nearest sector immediately!
         val cancelDeadzone = min(r0 * 0.35f, 22f * density)
 
         if (dist >= cancelDeadzone) {
-            val thickness = (r1 - r0).coerceAtLeast(10f)
-
-            // Dynamic radial reverse stickiness:
-            // When a layer is currently selected, its boundary shrinks slightly towards neighbor layers
-            // so moving your finger outward or inward smoothly transitions to adjacent rings without stickiness.
-            val layerShift = thickness * 0.18f
-
-            val l1Max = if (hasL2) {
-                if (hoveredLayer == 1) (r1 - layerShift) else if (hoveredLayer == 2) (r1 + layerShift) else r1
-            } else Float.MAX_VALUE
-
-            val l2Max = if (hasL3) {
-                if (hoveredLayer == 2) (r2 - layerShift) else if (hoveredLayer == 3) (r2 + layerShift) else r2
-            } else Float.MAX_VALUE
-
             newLayer = when {
-                hasL1 && dist < l1Max -> 1
-                hasL2 && dist in l1Max..l2Max -> 2
-                hasL3 && dist >= l2Max -> 3
-                hasL3 -> 3
-                hasL2 -> 2
+                hasL3 && dist >= r2 -> 3
+                hasL2 && dist >= r1 -> 2
                 hasL1 -> 1
                 else -> -1
             }
@@ -295,32 +277,8 @@ class PieMenuView @JvmOverloads constructor(
                     // Generous angular tolerance (-25°..205°) so entering from top or bottom selects cleanly
                     if (normAngle in -25f..205f) {
                         val clampedAngle = normAngle.coerceIn(0f, 179.99f)
-                        val count = list.size
-                        val sliceSpan = 180f / count
-
-                        // Reverse stickiness between angular slices:
-                        // When an action is selected, its hitbox shrinks by ~22% on each edge.
-                        // Any intentional movement towards a neighbor action makes the neighbor take over eagerly!
-                        if (hoveredLayer == newLayer && hoveredIndex in 0 until count) {
-                            val cur = hoveredIndex
-                            val shrinkDelta = sliceSpan * 0.22f
-                            val curMin = if (cur > 0) (cur * sliceSpan + shrinkDelta) else 0f
-                            val curMax = if (cur < count - 1) ((cur + 1) * sliceSpan - shrinkDelta) else 180f
-
-                            if (clampedAngle in curMin..curMax) {
-                                newIndex = cur
-                            } else if (clampedAngle < curMin && cur > 0) {
-                                val cand = (clampedAngle / sliceSpan).toInt().coerceIn(0, count - 1)
-                                newIndex = min(cur - 1, cand)
-                            } else if (clampedAngle > curMax && cur < count - 1) {
-                                val cand = (clampedAngle / sliceSpan).toInt().coerceIn(0, count - 1)
-                                newIndex = max(cur + 1, cand)
-                            } else {
-                                newIndex = (clampedAngle / sliceSpan).toInt().coerceIn(0, count - 1)
-                            }
-                        } else {
-                            newIndex = (clampedAngle / sliceSpan).toInt().coerceIn(0, count - 1)
-                        }
+                        val sliceSpan = 180f / list.size
+                        newIndex = (clampedAngle / sliceSpan).toInt().coerceIn(0, list.size - 1)
                     } else {
                         newLayer = -1
                     }

@@ -91,9 +91,15 @@ class RingActionAdapter(
             onActionDelete(act, pos)
         }
 
-        binding.ivDragHandle.setOnTouchListener { _, event ->
-            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                onStartDragListener?.invoke(holder)
+        binding.ivDragHandle.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    view.parent?.requestDisallowInterceptTouchEvent(true)
+                    onStartDragListener?.invoke(holder)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                }
             }
             false
         }

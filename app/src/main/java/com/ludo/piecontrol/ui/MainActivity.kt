@@ -630,6 +630,7 @@ class MainActivity : AppCompatActivity() {
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
                 super.onSelectedChanged(viewHolder, actionState)
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    recyclerView.parent?.requestDisallowInterceptTouchEvent(true)
                     viewHolder?.itemView?.apply {
                         animate().scaleX(1.02f).scaleY(1.02f).setDuration(120).start()
                         alpha = 0.85f
@@ -640,6 +641,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun clearView(rv: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(rv, viewHolder)
+                recyclerView.parent?.requestDisallowInterceptTouchEvent(false)
                 viewHolder.itemView.apply {
                     animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
                     alpha = 1.0f
@@ -1161,19 +1163,76 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        var itemTouchHelper: ItemTouchHelper? = null
         val folderAdapter = RingActionAdapter(
             context = this,
             actions = folderActions,
             onActionClick = { _, _ -> },
-            onActionDelete = { _, pos ->
-                folderActions.removeAt(pos)
-                rvFolderItems.adapter?.notifyItemRemoved(pos)
+            onActionDelete = { action, pos ->
+                val currentIdx = folderActions.indexOfFirst { it.id == action.id }
+                if (currentIdx != -1) {
+                    folderActions.removeAt(currentIdx)
+                } else if (pos in folderActions.indices) {
+                    folderActions.removeAt(pos)
+                }
+                rvFolderItems.adapter?.notifyDataSetChanged()
                 updateFolderItemsUi()
             },
-            onOrderChanged = {}
+            onOrderChanged = {},
+            onStartDragListener = { holder ->
+                itemTouchHelper?.startDrag(holder)
+            }
         )
         rvFolderItems.layoutManager = LinearLayoutManager(this)
         rvFolderItems.adapter = folderAdapter
+
+        val callback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+            0
+        ) {
+            override fun onMove(
+                rv: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val fromPos = viewHolder.adapterPosition
+                val toPos = target.adapterPosition
+                if (fromPos != RecyclerView.NO_POSITION && toPos != RecyclerView.NO_POSITION) {
+                    folderAdapter.onItemMove(fromPos, toPos)
+                    return true
+                }
+                return false
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+            override fun isLongPressDragEnabled(): Boolean = true
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    rvFolderItems.parent?.requestDisallowInterceptTouchEvent(true)
+                    viewHolder?.itemView?.apply {
+                        animate().scaleX(1.02f).scaleY(1.02f).setDuration(120).start()
+                        alpha = 0.85f
+                        elevation = 12f
+                    }
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                rvFolderItems.parent?.requestDisallowInterceptTouchEvent(false)
+                viewHolder.itemView.apply {
+                    animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
+                    alpha = 1.0f
+                    elevation = 0f
+                }
+                folderAdapter.onDragComplete()
+            }
+        }
+        itemTouchHelper = ItemTouchHelper(callback)
+        itemTouchHelper.attachToRecyclerView(rvFolderItems)
         updateFolderItemsUi()
 
         btnAddAction.setOnClickListener {
