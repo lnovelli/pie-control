@@ -57,7 +57,6 @@ class PieMenuView @JvmOverloads constructor(
     private var r1: Float = 0f // Layer 1 outer
     private var r2: Float = 0f // Layer 2 outer
     private var r3: Float = 0f // Layer 3 outer
-    private val sliceGapDegrees = 1.2f
 
     // Paints
     private val slicePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -95,6 +94,7 @@ class PieMenuView @JvmOverloads constructor(
 
     // Paths and Rects
     private val arcPath = Path()
+    private val borderPath = Path()
     private val innerRect = RectF()
     private val outerRect = RectF()
 
@@ -363,6 +363,7 @@ class PieMenuView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        borderPath.reset()
 
         // Draw center origin indicator (subtle glow at touch origin)
         canvas.drawCircle(anchorX, anchorY, minOf(r0 * 0.65f, 50f * context.resources.displayMetrics.density), centerGlowPaint)
@@ -381,6 +382,9 @@ class PieMenuView @JvmOverloads constructor(
         if (config.layer3.isNotEmpty()) {
             drawRing(canvas, 3, r2, r3, config.layer3)
         }
+
+        // Draw shared borders once, after all neighboring slice fills.
+        canvas.drawPath(borderPath, sliceBorderPaint)
     }
 
     private fun drawRing(
@@ -403,11 +407,11 @@ class PieMenuView @JvmOverloads constructor(
             val isHovered = (hoveredLayer == layerNumber && hoveredIndex == i)
 
             val startAngle = if (currentEdge == Edge.RIGHT) {
-                baseStartAngle + (count - 1 - i) * sliceAngle + (sliceGapDegrees / 2f)
+                baseStartAngle + (count - 1 - i) * sliceAngle
             } else {
-                baseStartAngle + i * sliceAngle + (sliceGapDegrees / 2f)
+                baseStartAngle + i * sliceAngle
             }
-            val sweepAngle = sliceAngle - sliceGapDegrees
+            val sweepAngle = sliceAngle
 
             // Build sector path
             arcPath.reset()
@@ -418,7 +422,6 @@ class PieMenuView @JvmOverloads constructor(
             // Draw slice background
             val paint = if (isHovered) sliceHighlightPaint else slicePaint
             canvas.drawPath(arcPath, paint)
-            canvas.drawPath(arcPath, sliceBorderPaint)
 
             // Draw Action Icons (single centered or primary + secondary)
             val action = actions[i]
@@ -433,6 +436,28 @@ class PieMenuView @JvmOverloads constructor(
             }
 
             drawActionIcons(canvas, action, innerR, outerR, startAngle, sweepAngle, isHovered)
+        }
+
+        borderPath.addArc(outerRect, baseStartAngle, 180f)
+        val hasInnerRing = when (layerNumber) {
+            2 -> config.layer1.isNotEmpty()
+            3 -> config.layer2.isNotEmpty()
+            else -> false
+        }
+        if (!hasInnerRing) {
+            borderPath.addArc(innerRect, baseStartAngle, 180f)
+        }
+
+        for (i in 0..count) {
+            val rad = Math.toRadians((baseStartAngle + i * sliceAngle).toDouble())
+            borderPath.moveTo(
+                (anchorX + innerR * cos(rad)).toFloat(),
+                (anchorY + innerR * sin(rad)).toFloat()
+            )
+            borderPath.lineTo(
+                (anchorX + outerR * cos(rad)).toFloat(),
+                (anchorY + outerR * sin(rad)).toFloat()
+            )
         }
     }
 
