@@ -18,7 +18,8 @@ enum class ActionType(val defaultLabel: String, val iconRes: Int) {
     CHECK_UPDATES("Check Updates", R.drawable.ic_action_update),
     APP("Open App", R.drawable.ic_action_app),
     URL("Open URL", R.drawable.ic_action_web),
-    SHORTCUT("Shortcut", R.drawable.ic_action_shortcut);
+    SHORTCUT("Shortcut", R.drawable.ic_action_shortcut),
+    FOLDER("Folder", R.drawable.ic_action_folder);
 
     companion object {
         fun fromString(name: String): ActionType {

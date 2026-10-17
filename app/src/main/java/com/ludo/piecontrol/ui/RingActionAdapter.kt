@@ -54,6 +54,7 @@ class RingActionAdapter(
             binding.tvActionSub.text = when (action.type) {
                 ActionType.APP -> "App: ${action.data}"
                 ActionType.URL -> "Website: ${action.data}"
+                ActionType.FOLDER -> "📁 Folder: ${action.label}"
                 ActionType.SHORTCUT -> "Shortcut"
                 else -> "Core System Action"
             }

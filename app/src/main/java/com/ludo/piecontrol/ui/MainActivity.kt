@@ -31,6 +31,7 @@ import com.ludo.piecontrol.databinding.ItemRingActionBinding
 import com.ludo.piecontrol.model.ActionType
 import com.ludo.piecontrol.model.PieAction
 import com.ludo.piecontrol.model.PieConfig
+import com.ludo.piecontrol.model.PieFolder
 import com.ludo.piecontrol.service.PieAccessibilityService
 import com.ludo.piecontrol.service.PieOverlayService
 import java.io.BufferedReader
@@ -311,6 +312,9 @@ class MainActivity : AppCompatActivity() {
         binding.btnAddLayer2.setOnClickListener { showAddActionDialog(2) }
         binding.btnAddLayer3.setOnClickListener { showAddActionDialog(3) }
 
+        // Action Folders Add Button
+        binding.btnAddFolder.setOnClickListener { showFolderEditDialog(null) }
+
         // Backup & Restore
         binding.btnExportConfig.setOnClickListener {
             exportFileLauncher.launch("piecontrol_config.json")
@@ -409,6 +413,36 @@ class MainActivity : AppCompatActivity() {
         updateRingLayerUi(1, binding.tvLayer1Header, binding.btnAddLayer1, binding.rvLayer1, binding.tvEmptyLayer1, config.layer1)
         updateRingLayerUi(2, binding.tvLayer2Header, binding.btnAddLayer2, binding.rvLayer2, binding.tvEmptyLayer2, config.layer2)
         updateRingLayerUi(3, binding.tvLayer3Header, binding.btnAddLayer3, binding.rvLayer3, binding.tvEmptyLayer3, config.layer3)
+        renderFolders()
+    }
+
+    private fun renderFolders() {
+        val folders = config.folders
+        if (folders.isEmpty()) {
+            binding.tvEmptyFolders.visibility = View.VISIBLE
+            binding.rvFolders.visibility = View.GONE
+        } else {
+            binding.tvEmptyFolders.visibility = View.GONE
+            binding.rvFolders.visibility = View.VISIBLE
+        }
+        binding.rvFolders.layoutManager = LinearLayoutManager(this)
+        binding.rvFolders.adapter = FolderAdapter(
+            folders = folders,
+            onEditClick = { folder, pos -> showFolderEditDialog(folder, pos) },
+            onDeleteClick = { folder, pos ->
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("Delete Folder")
+                    .setMessage("Are you sure you want to delete folder \"${folder.name}\"?")
+                    .setPositiveButton("Delete") { _, _ ->
+                        folders.removeAt(pos)
+                        saveConfig()
+                        renderFolders()
+                        renderRingActions()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+        )
     }
 
     private fun updateRingLayerUi(
@@ -543,21 +577,44 @@ class MainActivity : AppCompatActivity() {
     private fun showAddActionDialog(layerNum: Int, existingAction: PieAction? = null) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_action, null)
         val tvTitle = dialogView.findViewById<TextView>(R.id.tvDialogTitle)
+
+        // Primary views
         val rbSystem = dialogView.findViewById<RadioButton>(R.id.rbSystem)
         val rbApp = dialogView.findViewById<RadioButton>(R.id.rbApp)
         val rbUrl = dialogView.findViewById<RadioButton>(R.id.rbUrl)
+        val rbFolder = dialogView.findViewById<RadioButton>(R.id.rbFolder)
 
         val layoutSystem = dialogView.findViewById<LinearLayout>(R.id.layoutSystemActions)
         val layoutApp = dialogView.findViewById<LinearLayout>(R.id.layoutAppPicker)
         val layoutUrl = dialogView.findViewById<LinearLayout>(R.id.layoutUrl)
+        val layoutFolder = dialogView.findViewById<LinearLayout>(R.id.layoutFolderPicker)
 
         val spinnerSystem = dialogView.findViewById<Spinner>(R.id.spinnerSystemActions)
-        val spinnerSecondary = dialogView.findViewById<Spinner>(R.id.spinnerSecondaryAction)
+        val spinnerPrimaryFolder = dialogView.findViewById<Spinner>(R.id.spinnerPrimaryFolder)
         val etSearchApp = dialogView.findViewById<EditText>(R.id.etSearchApp)
         val rvApps = dialogView.findViewById<RecyclerView>(R.id.rvAppsList)
-
         val etWebUrl = dialogView.findViewById<EditText>(R.id.etWebUrl)
         val etWebLabel = dialogView.findViewById<EditText>(R.id.etWebLabel)
+
+        // Secondary views
+        val switchSecondary = dialogView.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.switchEnableSecondary)
+        val layoutSecContainer = dialogView.findViewById<LinearLayout>(R.id.layoutSecondaryContainer)
+        val rbSecSystem = dialogView.findViewById<RadioButton>(R.id.rbSecSystem)
+        val rbSecApp = dialogView.findViewById<RadioButton>(R.id.rbSecApp)
+        val rbSecUrl = dialogView.findViewById<RadioButton>(R.id.rbSecUrl)
+        val rbSecFolder = dialogView.findViewById<RadioButton>(R.id.rbSecFolder)
+
+        val layoutSecSystem = dialogView.findViewById<LinearLayout>(R.id.layoutSecSystemActions)
+        val layoutSecApp = dialogView.findViewById<LinearLayout>(R.id.layoutSecAppPicker)
+        val layoutSecUrl = dialogView.findViewById<LinearLayout>(R.id.layoutSecUrl)
+        val layoutSecFolder = dialogView.findViewById<LinearLayout>(R.id.layoutSecFolderPicker)
+
+        val spinnerSecSystem = dialogView.findViewById<Spinner>(R.id.spinnerSecSystemActions)
+        val spinnerSecFolder = dialogView.findViewById<Spinner>(R.id.spinnerSecFolder)
+        val etSecSearchApp = dialogView.findViewById<EditText>(R.id.etSecSearchApp)
+        val rvSecApps = dialogView.findViewById<RecyclerView>(R.id.rvSecAppsList)
+        val etSecWebUrl = dialogView.findViewById<EditText>(R.id.etSecWebUrl)
+        val etSecWebLabel = dialogView.findViewById<EditText>(R.id.etSecWebLabel)
 
         val ringName = when (layerNum) {
             1 -> "Inner Ring"
@@ -566,55 +623,50 @@ class MainActivity : AppCompatActivity() {
         }
         tvTitle.text = if (existingAction == null) "Add Action to $ringName" else "Reassign Action in $ringName"
 
-        // Setup System Spinner
+        // Setup System Action Spinners
         val systemActionTypes = listOf(
-            ActionType.BACK,
-            ActionType.HOME,
-            ActionType.RECENTS,
-            ActionType.NOTIFICATIONS,
-            ActionType.QUICK_SETTINGS,
-            ActionType.ASSISTANT,
-            ActionType.POWER,
-            ActionType.SCREENSHOT,
-            ActionType.LOCK_SCREEN,
-            ActionType.VOLUME_UP,
-            ActionType.VOLUME_DOWN,
-            ActionType.FLASHLIGHT,
+            ActionType.BACK, ActionType.HOME, ActionType.RECENTS, ActionType.NOTIFICATIONS,
+            ActionType.QUICK_SETTINGS, ActionType.ASSISTANT, ActionType.POWER, ActionType.SCREENSHOT,
+            ActionType.LOCK_SCREEN, ActionType.VOLUME_UP, ActionType.VOLUME_DOWN, ActionType.FLASHLIGHT,
             ActionType.CHECK_UPDATES
         )
         val systemLabels = systemActionTypes.map { it.defaultLabel }
-        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, systemLabels)
-        spinnerSystem.adapter = spinnerAdapter
+        spinnerSystem.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, systemLabels)
+        spinnerSecSystem.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, systemLabels)
 
-        // Setup Secondary Trigger Spinner
-        val secondaryOptions = listOf("None (Single Action)") + systemLabels
-        val secondaryAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, secondaryOptions)
-        spinnerSecondary.adapter = secondaryAdapter
+        // Setup Folder Spinners
+        val folderNames = if (config.folders.isEmpty()) listOf("No folders created yet") else config.folders.map { it.name }
+        spinnerPrimaryFolder.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, folderNames)
+        spinnerSecFolder.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, folderNames)
 
-        // Radio button toggle
-        rbSystem.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                layoutSystem.visibility = View.VISIBLE
-                layoutApp.visibility = View.GONE
-                layoutUrl.visibility = View.GONE
-            }
+        // Primary Radio visibility toggles
+        fun updatePrimaryVisibility() {
+            layoutSystem.visibility = if (rbSystem.isChecked) View.VISIBLE else View.GONE
+            layoutApp.visibility = if (rbApp.isChecked) View.VISIBLE else View.GONE
+            layoutUrl.visibility = if (rbUrl.isChecked) View.VISIBLE else View.GONE
+            layoutFolder.visibility = if (rbFolder.isChecked) View.VISIBLE else View.GONE
         }
-        rbApp.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                layoutSystem.visibility = View.GONE
-                layoutApp.visibility = View.VISIBLE
-                layoutUrl.visibility = View.GONE
-            }
-        }
-        rbUrl.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                layoutSystem.visibility = View.GONE
-                layoutApp.visibility = View.GONE
-                layoutUrl.visibility = View.VISIBLE
-            }
-        }
+        rbSystem.setOnClickListener { updatePrimaryVisibility() }
+        rbApp.setOnClickListener { updatePrimaryVisibility() }
+        rbUrl.setOnClickListener { updatePrimaryVisibility() }
+        rbFolder.setOnClickListener { updatePrimaryVisibility() }
 
-        // Setup App Picker List
+        // Secondary Switch & Radio toggles
+        switchSecondary.setOnCheckedChangeListener { _, isChecked ->
+            layoutSecContainer.visibility = if (isChecked) View.VISIBLE else View.GONE
+        }
+        fun updateSecVisibility() {
+            layoutSecSystem.visibility = if (rbSecSystem.isChecked) View.VISIBLE else View.GONE
+            layoutSecApp.visibility = if (rbSecApp.isChecked) View.VISIBLE else View.GONE
+            layoutSecUrl.visibility = if (rbSecUrl.isChecked) View.VISIBLE else View.GONE
+            layoutSecFolder.visibility = if (rbSecFolder.isChecked) View.VISIBLE else View.GONE
+        }
+        rbSecSystem.setOnClickListener { updateSecVisibility() }
+        rbSecApp.setOnClickListener { updateSecVisibility() }
+        rbSecUrl.setOnClickListener { updateSecVisibility() }
+        rbSecFolder.setOnClickListener { updateSecVisibility() }
+
+        // Load installed apps
         val pm = packageManager
         val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
             .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
@@ -627,73 +679,103 @@ class MainActivity : AppCompatActivity() {
             }
             .sortedBy { it.label.lowercase() }
 
-        var filteredApps = installedApps.toList()
-        var selectedApp: AppEntry? = if (existingAction?.type == ActionType.APP) {
+        // Primary App Picker
+        var selectedPrimaryApp: AppEntry? = if (existingAction?.type == ActionType.APP) {
             installedApps.firstOrNull { it.packageName == existingAction.data }
         } else null
-
-        val appAdapter = AppPickerAdapter(
-            items = filteredApps,
-            initialSelectedPackage = if (existingAction?.type == ActionType.APP) existingAction.data else null
-        ) { app ->
-            selectedApp = app
-        }
+        val primaryAppAdapter = AppPickerAdapter(
+            items = installedApps,
+            initialSelectedPackage = selectedPrimaryApp?.packageName
+        ) { app -> selectedPrimaryApp = app }
         rvApps.layoutManager = LinearLayoutManager(this)
-        rvApps.adapter = appAdapter
-
-        if (selectedApp != null) {
-            val initialPos = filteredApps.indexOfFirst { it.packageName == selectedApp!!.packageName }
-            if (initialPos != -1) {
-                rvApps.scrollToPosition(initialPos)
-            }
-        }
+        rvApps.adapter = primaryAppAdapter
 
         etSearchApp.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val query = s?.toString()?.lowercase() ?: ""
-                filteredApps = if (query.isEmpty()) {
-                    installedApps
-                } else {
-                    installedApps.filter { it.label.lowercase().contains(query) || it.packageName.lowercase().contains(query) }
-                }
-                appAdapter.updateList(filteredApps)
+                val q = s?.toString()?.lowercase() ?: ""
+                val filtered = if (q.isEmpty()) installedApps else installedApps.filter { it.label.lowercase().contains(q) || it.packageName.lowercase().contains(q) }
+                primaryAppAdapter.updateList(filtered)
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
-        // Pre-populate if editing/reassigning existing action
+        // Secondary App Picker
+        val existingSec = existingAction?.secondaryAction
+        var selectedSecApp: AppEntry? = if (existingSec?.type == ActionType.APP) {
+            installedApps.firstOrNull { it.packageName == existingSec.data }
+        } else null
+        val secAppAdapter = AppPickerAdapter(
+            items = installedApps,
+            initialSelectedPackage = selectedSecApp?.packageName
+        ) { app -> selectedSecApp = app }
+        rvSecApps.layoutManager = LinearLayoutManager(this)
+        rvSecApps.adapter = secAppAdapter
+
+        etSecSearchApp.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val q = s?.toString()?.lowercase() ?: ""
+                val filtered = if (q.isEmpty()) installedApps else installedApps.filter { it.label.lowercase().contains(q) || it.packageName.lowercase().contains(q) }
+                secAppAdapter.updateList(filtered)
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        // Populate existing primary action
         if (existingAction != null) {
             when (existingAction.type) {
                 ActionType.APP -> {
                     rbApp.isChecked = true
-                    layoutSystem.visibility = View.GONE
-                    layoutApp.visibility = View.VISIBLE
-                    layoutUrl.visibility = View.GONE
+                    updatePrimaryVisibility()
                 }
                 ActionType.URL -> {
                     rbUrl.isChecked = true
-                    layoutSystem.visibility = View.GONE
-                    layoutApp.visibility = View.GONE
-                    layoutUrl.visibility = View.VISIBLE
+                    updatePrimaryVisibility()
                     etWebUrl.setText(existingAction.data)
                     etWebLabel.setText(existingAction.label)
                 }
+                ActionType.FOLDER -> {
+                    rbFolder.isChecked = true
+                    updatePrimaryVisibility()
+                    val folderIdx = config.folders.indexOfFirst { it.id == existingAction.data }
+                    if (folderIdx != -1) spinnerPrimaryFolder.setSelection(folderIdx)
+                }
                 else -> {
                     rbSystem.isChecked = true
-                    layoutSystem.visibility = View.VISIBLE
-                    layoutApp.visibility = View.GONE
-                    layoutUrl.visibility = View.GONE
+                    updatePrimaryVisibility()
                     val sysIdx = systemActionTypes.indexOf(existingAction.type)
                     if (sysIdx != -1) spinnerSystem.setSelection(sysIdx)
                 }
             }
 
-            val sec = existingAction.secondaryAction
-            if (sec != null) {
-                val secIdx = systemActionTypes.indexOf(sec.type)
-                if (secIdx != -1) {
-                    spinnerSecondary.setSelection(secIdx + 1)
+            // Populate existing secondary action
+            if (existingSec != null) {
+                switchSecondary.isChecked = true
+                layoutSecContainer.visibility = View.VISIBLE
+                when (existingSec.type) {
+                    ActionType.APP -> {
+                        rbSecApp.isChecked = true
+                        updateSecVisibility()
+                    }
+                    ActionType.URL -> {
+                        rbSecUrl.isChecked = true
+                        updateSecVisibility()
+                        etSecWebUrl.setText(existingSec.data)
+                        etSecWebLabel.setText(existingSec.label)
+                    }
+                    ActionType.FOLDER -> {
+                        rbSecFolder.isChecked = true
+                        updateSecVisibility()
+                        val folderIdx = config.folders.indexOfFirst { it.id == existingSec.data }
+                        if (folderIdx != -1) spinnerSecFolder.setSelection(folderIdx)
+                    }
+                    else -> {
+                        rbSecSystem.isChecked = true
+                        updateSecVisibility()
+                        val sysIdx = systemActionTypes.indexOf(existingSec.type)
+                        if (sysIdx != -1) spinnerSecSystem.setSelection(sysIdx)
+                    }
                 }
             }
         }
@@ -706,6 +788,12 @@ class MainActivity : AppCompatActivity() {
             .create()
 
         dialog.show()
+
+        // Set generous spacious dialog dimensions to prevent content clipping
+        val displayMetrics = resources.displayMetrics
+        val dialogWidth = (displayMetrics.widthPixels * 0.94).toInt()
+        val dialogHeight = (displayMetrics.heightPixels * 0.88).toInt()
+        dialog.window?.setLayout(dialogWidth, dialogHeight)
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val targetList = when (layerNum) {
@@ -725,6 +813,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            // Construct Primary Action
             val primaryAction: PieAction? = when {
                 rbSystem.isChecked -> {
                     val idx = spinnerSystem.selectedItemPosition
@@ -732,11 +821,11 @@ class MainActivity : AppCompatActivity() {
                     PieAction(type = selectedType, label = selectedType.defaultLabel)
                 }
                 rbApp.isChecked -> {
-                    if (selectedApp == null) {
+                    if (selectedPrimaryApp == null) {
                         Toast.makeText(this, "Please select an application from the list", Toast.LENGTH_SHORT).show()
                         null
                     } else {
-                        PieAction(type = ActionType.APP, label = selectedApp!!.label, data = selectedApp!!.packageName)
+                        PieAction(type = ActionType.APP, label = selectedPrimaryApp!!.label, data = selectedPrimaryApp!!.packageName)
                     }
                 }
                 rbUrl.isChecked -> {
@@ -750,13 +839,56 @@ class MainActivity : AppCompatActivity() {
                         PieAction(type = ActionType.URL, label = displayLabel, data = url)
                     }
                 }
+                rbFolder.isChecked -> {
+                    if (config.folders.isEmpty()) {
+                        Toast.makeText(this, "No folders available. Create a folder first.", Toast.LENGTH_SHORT).show()
+                        null
+                    } else {
+                        val folder = config.folders[spinnerPrimaryFolder.selectedItemPosition]
+                        PieAction(type = ActionType.FOLDER, label = folder.name, data = folder.id)
+                    }
+                }
                 else -> null
             }
 
-            val secPos = spinnerSecondary.selectedItemPosition
-            val secondaryAction: PieAction? = if (secPos > 0) {
-                val secType = systemActionTypes[secPos - 1]
-                PieAction(type = secType, label = secType.defaultLabel)
+            // Construct Secondary Action
+            val secondaryAction: PieAction? = if (switchSecondary.isChecked) {
+                when {
+                    rbSecSystem.isChecked -> {
+                        val idx = spinnerSecSystem.selectedItemPosition
+                        val selectedType = systemActionTypes[idx]
+                        PieAction(type = selectedType, label = selectedType.defaultLabel)
+                    }
+                    rbSecApp.isChecked -> {
+                        if (selectedSecApp == null) {
+                            Toast.makeText(this, "Please select a secondary application", Toast.LENGTH_SHORT).show()
+                            null
+                        } else {
+                            PieAction(type = ActionType.APP, label = selectedSecApp!!.label, data = selectedSecApp!!.packageName)
+                        }
+                    }
+                    rbSecUrl.isChecked -> {
+                        val url = etSecWebUrl.text?.toString()?.trim() ?: ""
+                        val label = etSecWebLabel.text?.toString()?.trim() ?: ""
+                        if (url.isEmpty()) {
+                            Toast.makeText(this, "Please enter a secondary website URL", Toast.LENGTH_SHORT).show()
+                            null
+                        } else {
+                            val displayLabel = if (label.isNotEmpty()) label else "Website"
+                            PieAction(type = ActionType.URL, label = displayLabel, data = url)
+                        }
+                    }
+                    rbSecFolder.isChecked -> {
+                        if (config.folders.isEmpty()) {
+                            Toast.makeText(this, "No folders available for secondary.", Toast.LENGTH_SHORT).show()
+                            null
+                        } else {
+                            val folder = config.folders[spinnerSecFolder.selectedItemPosition]
+                            PieAction(type = ActionType.FOLDER, label = folder.name, data = folder.id)
+                        }
+                    }
+                    else -> null
+                }
             } else null
 
             if (primaryAction != null) {
@@ -779,6 +911,149 @@ class MainActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
         }
+    }
+
+    private fun showFolderEditDialog(existingFolder: PieFolder?, position: Int = -1) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_folder, null)
+        val tvTitle = dialogView.findViewById<TextView>(R.id.tvFolderDialogTitle)
+        val etName = dialogView.findViewById<EditText>(R.id.etFolderName)
+        val rgIcon = dialogView.findViewById<RadioGroup>(R.id.rgFolderIcon)
+        val rbIconDefault = dialogView.findViewById<RadioButton>(R.id.rbIconDefault)
+        val rbIconApps = dialogView.findViewById<RadioButton>(R.id.rbIconApps)
+        val rbIconTools = dialogView.findViewById<RadioButton>(R.id.rbIconTools)
+        val rbIconStar = dialogView.findViewById<RadioButton>(R.id.rbIconStar)
+        val btnAddAction = dialogView.findViewById<Button>(R.id.btnAddFolderAction)
+        val rvFolderItems = dialogView.findViewById<RecyclerView>(R.id.rvFolderItemList)
+        val tvEmpty = dialogView.findViewById<TextView>(R.id.tvEmptyFolderActions)
+
+        tvTitle.text = if (existingFolder == null) "Create Action Folder" else "Edit Folder"
+        val folderActions = existingFolder?.actions?.toMutableList() ?: mutableListOf<PieAction>()
+
+        if (existingFolder != null) {
+            etName.setText(existingFolder.name)
+            when (existingFolder.iconName) {
+                "ic_folder_apps" -> rbIconApps.isChecked = true
+                "ic_folder_tools" -> rbIconTools.isChecked = true
+                "ic_folder_star" -> rbIconStar.isChecked = true
+                else -> rbIconDefault.isChecked = true
+            }
+        }
+
+        fun updateFolderItemsUi() {
+            if (folderActions.isEmpty()) {
+                tvEmpty.visibility = View.VISIBLE
+                rvFolderItems.visibility = View.GONE
+            } else {
+                tvEmpty.visibility = View.GONE
+                rvFolderItems.visibility = View.VISIBLE
+            }
+        }
+
+        val folderAdapter = RingActionAdapter(
+            context = this,
+            actions = folderActions,
+            onActionClick = { _, _ -> },
+            onActionDelete = { _, pos ->
+                folderActions.removeAt(pos)
+                rvFolderItems.adapter?.notifyItemRemoved(pos)
+                updateFolderItemsUi()
+            },
+            onOrderChanged = {}
+        )
+        rvFolderItems.layoutManager = LinearLayoutManager(this)
+        rvFolderItems.adapter = folderAdapter
+        updateFolderItemsUi()
+
+        btnAddAction.setOnClickListener {
+            showSimpleActionSelectorDialog { newAction ->
+                folderActions.add(newAction)
+                folderAdapter.notifyItemInserted(folderActions.size - 1)
+                updateFolderItemsUi()
+            }
+        }
+
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setPositiveButton("Save", null)
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.show()
+
+        val displayMetrics = resources.displayMetrics
+        dialog.window?.setLayout((displayMetrics.widthPixels * 0.94).toInt(), (displayMetrics.heightPixels * 0.88).toInt())
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val name = etName.text?.toString()?.trim() ?: ""
+            if (name.isEmpty()) {
+                Toast.makeText(this, "Please enter a folder name", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val iconName = when {
+                rbIconApps.isChecked -> "ic_folder_apps"
+                rbIconTools.isChecked -> "ic_folder_tools"
+                rbIconStar.isChecked -> "ic_folder_star"
+                else -> "ic_action_folder"
+            }
+
+            val finalFolder = PieFolder(
+                id = existingFolder?.id ?: java.util.UUID.randomUUID().toString(),
+                name = name,
+                iconName = iconName,
+                actions = folderActions
+            )
+
+            if (position >= 0 && position < config.folders.size) {
+                config.folders[position] = finalFolder
+            } else {
+                config.folders.add(finalFolder)
+            }
+
+            saveConfig()
+            renderFolders()
+            renderRingActions()
+            dialog.dismiss()
+        }
+    }
+
+    private fun showSimpleActionSelectorDialog(onActionSelected: (PieAction) -> Unit) {
+        val systemActionTypes = listOf(
+            ActionType.BACK, ActionType.HOME, ActionType.RECENTS, ActionType.NOTIFICATIONS,
+            ActionType.QUICK_SETTINGS, ActionType.ASSISTANT, ActionType.POWER, ActionType.SCREENSHOT,
+            ActionType.LOCK_SCREEN, ActionType.VOLUME_UP, ActionType.VOLUME_DOWN, ActionType.FLASHLIGHT
+        )
+        val pm = packageManager
+        val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
+            .map { AppEntry(pm.getApplicationLabel(it).toString(), it.packageName, pm.getApplicationIcon(it)) }
+            .sortedBy { it.label.lowercase() }
+
+        val options = arrayOf("System Action", "Installed App")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Add Action to Folder")
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    val labels = systemActionTypes.map { it.defaultLabel }.toTypedArray()
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle("Select System Action")
+                        .setItems(labels) { _, idx ->
+                            val type = systemActionTypes[idx]
+                            onActionSelected(PieAction(type = type, label = type.defaultLabel))
+                        }
+                        .show()
+                } else {
+                    val appLabels = installedApps.map { it.label }.toTypedArray()
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle("Select App")
+                        .setItems(appLabels) { _, idx ->
+                            val app = installedApps[idx]
+                            onActionSelected(PieAction(type = ActionType.APP, label = app.label, data = app.packageName))
+                        }
+                        .show()
+                }
+            }
+            .show()
     }
 
     private fun showImportOptionsDialog() {

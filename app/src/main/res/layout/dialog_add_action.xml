@@ -1,158 +1,360 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="20dp"
+    android:fillViewport="true"
     android:background="@color/surface">
 
-    <TextView
-        android:id="@+id/tvDialogTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Add Pie Action"
-        android:textColor="@color/text_primary"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp" />
-
-    <RadioGroup
-        android:id="@+id/rgActionCategory"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
-
-        <RadioButton
-            android:id="@+id/rbSystem"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:checked="true"
-            android:text="System"
-            android:textColor="@color/text_primary" />
-
-        <RadioButton
-            android:id="@+id/rbApp"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="App"
-            android:textColor="@color/text_primary" />
-
-        <RadioButton
-            android:id="@+id/rbUrl"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Web URL"
-            android:textColor="@color/text_primary" />
-    </RadioGroup>
-
-    <!-- System Actions Container -->
     <LinearLayout
-        android:id="@+id/layoutSystemActions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="20dp">
 
         <TextView
+            android:id="@+id/tvDialogTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Select Core Action:"
-            android:textColor="@color/text_secondary"
-            android:textSize="13sp"
-            android:layout_marginBottom="8dp" />
-
-        <Spinner
-            android:id="@+id/spinnerSystemActions"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_card"
-            android:paddingHorizontal="12dp"
-            android:layout_marginBottom="16dp" />
-    </LinearLayout>
-
-    <!-- App Picker Container -->
-    <LinearLayout
-        android:id="@+id/layoutAppPicker"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <EditText
-            android:id="@+id/etSearchApp"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:background="@drawable/bg_card"
-            android:hint="Search installed apps..."
-            android:textColorHint="@color/text_secondary"
+            android:text="Configure Action"
             android:textColor="@color/text_primary"
-            android:paddingHorizontal="12dp"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvAppsList"
-            android:layout_width="match_parent"
-            android:layout_height="220dp"
+            android:textSize="18sp"
+            android:textStyle="bold"
             android:layout_marginBottom="16dp" />
-    </LinearLayout>
 
-    <!-- Web URL Container -->
-    <LinearLayout
-        android:id="@+id/layoutUrl"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <com.google.android.material.textfield.TextInputLayout
+        <!-- ================= PRIMARY ACTION CARD ================= -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Website URL (e.g. https://google.com)"
-            android:layout_marginBottom="8dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etWebUrl"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textUri"
-                android:textColor="@color/text_primary" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Label / Name (e.g. Google)"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="14dp"
             android:layout_marginBottom="16dp">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etWebLabel"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PRIMARY TRIGGER (Immediate Release)"
+                android:textColor="@color/primary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp" />
+
+            <RadioGroup
+                android:id="@+id/rgActionCategory"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="text"
-                android:textColor="@color/text_primary" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+
+                <RadioButton
+                    android:id="@+id/rbSystem"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="System"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary" />
+
+                <RadioButton
+                    android:id="@+id/rbApp"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="App"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary" />
+
+                <RadioButton
+                    android:id="@+id/rbUrl"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="URL"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary" />
+
+                <RadioButton
+                    android:id="@+id/rbFolder"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Folder"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary" />
+            </RadioGroup>
+
+            <!-- Primary System Container -->
+            <LinearLayout
+                android:id="@+id/layoutSystemActions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <Spinner
+                    android:id="@+id/spinnerSystemActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_card"
+                    android:paddingHorizontal="12dp" />
+            </LinearLayout>
+
+            <!-- Primary App Picker Container -->
+            <LinearLayout
+                android:id="@+id/layoutAppPicker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/etSearchApp"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_card"
+                    android:hint="Search installed apps..."
+                    android:textColorHint="@color/text_secondary"
+                    android:textColor="@color/text_primary"
+                    android:paddingHorizontal="12dp"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvAppsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="180dp" />
+            </LinearLayout>
+
+            <!-- Primary Web URL Container -->
+            <LinearLayout
+                android:id="@+id/layoutUrl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/etWebUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_card"
+                    android:hint="https://example.com"
+                    android:textColorHint="@color/text_secondary"
+                    android:textColor="@color/text_primary"
+                    android:paddingHorizontal="12dp"
+                    android:textSize="14sp"
+                    android:inputType="textUri"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/etWebLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_card"
+                    android:hint="Shortcut Label (e.g. Website)"
+                    android:textColorHint="@color/text_secondary"
+                    android:textColor="@color/text_primary"
+                    android:paddingHorizontal="12dp"
+                    android:textSize="14sp"
+                    android:inputType="text" />
+            </LinearLayout>
+
+            <!-- Primary Folder Picker Container -->
+            <LinearLayout
+                android:id="@+id/layoutFolderPicker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <Spinner
+                    android:id="@+id/spinnerPrimaryFolder"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_card"
+                    android:paddingHorizontal="12dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- ================= SECONDARY ACTION CARD ================= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="SECONDARY TRIGGER (Hover / Hold)"
+                    android:textColor="@color/primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switchEnableSecondary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutSecondaryContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <RadioGroup
+                    android:id="@+id/rgSecondaryCategory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
+
+                    <RadioButton
+                        android:id="@+id/rbSecSystem"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:checked="true"
+                        android:text="System"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/rbSecApp"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="App"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/rbSecUrl"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="URL"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/rbSecFolder"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Folder"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary" />
+                </RadioGroup>
+
+                <!-- Secondary System Container -->
+                <LinearLayout
+                    android:id="@+id/layoutSecSystemActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <Spinner
+                        android:id="@+id/spinnerSecSystemActions"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_card"
+                        android:paddingHorizontal="12dp" />
+                </LinearLayout>
+
+                <!-- Secondary App Picker Container -->
+                <LinearLayout
+                    android:id="@+id/layoutSecAppPicker"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <EditText
+                        android:id="@+id/etSecSearchApp"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_card"
+                        android:hint="Search apps for secondary..."
+                        android:textColorHint="@color/text_secondary"
+                        android:textColor="@color/text_primary"
+                        android:paddingHorizontal="12dp"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="8dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSecAppsList"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp" />
+                </LinearLayout>
+
+                <!-- Secondary Web URL Container -->
+                <LinearLayout
+                    android:id="@+id/layoutSecUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <EditText
+                        android:id="@+id/etSecWebUrl"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_card"
+                        android:hint="https://example.com"
+                        android:textColorHint="@color/text_secondary"
+                        android:textColor="@color/text_primary"
+                        android:paddingHorizontal="12dp"
+                        android:textSize="14sp"
+                        android:inputType="textUri"
+                        android:layout_marginBottom="8dp" />
+
+                    <EditText
+                        android:id="@+id/etSecWebLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_card"
+                        android:hint="Shortcut Label (e.g. Website)"
+                        android:textColorHint="@color/text_secondary"
+                        android:textColor="@color/text_primary"
+                        android:paddingHorizontal="12dp"
+                        android:textSize="14sp"
+                        android:inputType="text" />
+                </LinearLayout>
+
+                <!-- Secondary Folder Picker Container -->
+                <LinearLayout
+                    android:id="@+id/layoutSecFolderPicker"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <Spinner
+                        android:id="@+id/spinnerSecFolder"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_card"
+                        android:paddingHorizontal="12dp" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
     </LinearLayout>
 
-    <!-- Secondary Action (Long-press / Second trigger) -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Secondary Action (Long-Press Trigger - Optional):"
-        android:textColor="@color/text_secondary"
-        android:textSize="13sp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="6dp" />
-
-    <Spinner
-        android:id="@+id/spinnerSecondaryAction"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="@drawable/bg_card"
-        android:paddingHorizontal="12dp"
-        android:layout_marginBottom="16dp" />
-
-</LinearLayout>
+</androidx.core.widget.NestedScrollView>

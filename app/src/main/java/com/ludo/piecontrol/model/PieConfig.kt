@@ -22,7 +22,8 @@ data class PieConfig(
     var hapticFeedback: Boolean = true,
     var layer1: MutableList<PieAction> = mutableListOf(),
     var layer2: MutableList<PieAction> = mutableListOf(),
-    var layer3: MutableList<PieAction> = mutableListOf()
+    var layer3: MutableList<PieAction> = mutableListOf(),
+    var folders: MutableList<PieFolder> = mutableListOf()
 ) {
     companion object {
         const val MAX_LAYER1 = 5
@@ -75,6 +76,17 @@ data class PieConfig(
                 ),
                 layer3 = mutableListOf(
                     PieAction(type = ActionType.URL, label = "Google", data = "https://www.google.com")
+                ),
+                folders = mutableListOf(
+                    PieFolder(
+                        name = "Tools",
+                        iconName = "ic_folder_tools",
+                        actions = mutableListOf(
+                            PieAction(type = ActionType.FLASHLIGHT, label = "Torch"),
+                            PieAction(type = ActionType.SCREENSHOT, label = "Screenshot"),
+                            PieAction(type = ActionType.LOCK_SCREEN, label = "Lock Screen")
+                        )
+                    )
                 )
             )
         }
@@ -116,6 +128,17 @@ data class PieConfig(
             config.layer2 = parseLayer(json.optJSONArray("layer2"), MAX_LAYER2)
             config.layer3 = parseLayer(json.optJSONArray("layer3"), MAX_LAYER3)
 
+            val foldersArray = json.optJSONArray("folders")
+            if (foldersArray != null) {
+                config.folders.clear()
+                for (i in 0 until foldersArray.length()) {
+                    val fObj = foldersArray.optJSONObject(i)
+                    if (fObj != null) {
+                        config.folders.add(PieFolder.fromJson(fObj))
+                    }
+                }
+            }
+
             return config
         }
     }
@@ -150,6 +173,10 @@ data class PieConfig(
             val arr3 = JSONArray()
             layer3.take(MAX_LAYER3).forEach { arr3.put(it.toJson()) }
             put("layer3", arr3)
+
+            val fArray = JSONArray()
+            folders.forEach { fArray.put(it.toJson()) }
+            put("folders", fArray)
         }
     }
 }

@@ -75,6 +75,19 @@ class PieMenuView @JvmOverloads constructor(
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         textSize = 28f
     }
+    private val badgeBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.argb(180, 20, 20, 35)
+    }
+    private val folderFramePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = Color.argb(160, 0, 230, 118)
+    }
+    private val folderDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.argb(220, 0, 230, 118)
+    }
 
     // Paths and Rects
     private val arcPath = Path()
@@ -390,6 +403,16 @@ class PieMenuView @JvmOverloads constructor(
 
             // Draw Action Icons (single centered or primary + secondary)
             val action = actions[i]
+
+            // Folder visual distinction: draw subtle accent indicator on sector edge
+            if (action.type == ActionType.FOLDER || action.secondaryAction?.type == ActionType.FOLDER) {
+                val fAngle = startAngle + sweepAngle - 3.5f
+                val fRad = Math.toRadians(fAngle.toDouble())
+                val fx = (anchorX + (outerR - 10f) * cos(fRad)).toFloat()
+                val fy = (anchorY + (outerR - 10f) * sin(fRad)).toFloat()
+                canvas.drawCircle(fx, fy, 4f, folderDotPaint)
+            }
+
             drawActionIcons(canvas, action, innerR, outerR, startAngle, sweepAngle, isHovered)
         }
     }
@@ -421,38 +444,57 @@ class PieMenuView @JvmOverloads constructor(
             val tintColor = if (isHovered) highlightColor else defaultIconColor
             val bitmap = getActionBitmap(action, iconSize, tintColor)
             if (bitmap != null) {
+                if (action.type == ActionType.FOLDER) {
+                    val half = iconSize / 2f + 4f
+                    canvas.drawRoundRect(cx - half, cy - half, cx + half, cy + half, 10f, 10f, folderFramePaint)
+                }
                 canvas.drawBitmap(bitmap, cx - (bitmap.width / 2f), cy - (bitmap.height / 2f), null)
             }
         } else {
-            // TWO ACTIONS: primary trigger (bigger) and secondary trigger (slightly smaller) close to each other
-            val rPrimary = midR - (thickness * 0.15f)
-            val rSecondary = midR + (thickness * 0.19f)
+            // TWO ACTIONS:
+            // First trigger is prominent at top-left/center,
+            // and bottom-right, slightly smaller is the secondary action icon!
+            val cxCenter = (anchorX + midR * cos(rad)).toFloat()
+            val cyCenter = (anchorY + midR * sin(rad)).toFloat()
 
-            val cxPrimary = (anchorX + rPrimary * cos(rad)).toFloat()
-            val cyPrimary = (anchorY + rPrimary * sin(rad)).toFloat()
+            val cxPrimary = cxCenter - (thickness * 0.08f)
+            val cyPrimary = cyCenter - (thickness * 0.08f)
 
-            val cxSec = (anchorX + rSecondary * cos(rad)).toFloat()
-            val cySec = (anchorY + rSecondary * sin(rad)).toFloat()
+            val cxSec = cxCenter + (thickness * 0.16f)
+            val cySec = cyCenter + (thickness * 0.16f)
 
             val isSecArmed = isHovered && isSecondaryArmed
             val isPrimFocused = isHovered && !isSecondaryArmed
 
             val primarySize = (thickness * (if (isPrimFocused) 0.42f else 0.36f)).toInt()
-            val secSize = (thickness * (if (isSecArmed) 0.33f else 0.25f)).toInt()
+            val secSize = (thickness * (if (isSecArmed) 0.32f else 0.24f)).toInt()
 
             val primaryTint = if (isPrimFocused) highlightColor else defaultIconColor
             val secTint = if (isSecArmed) highlightColor else defaultIconColor
-            val secAlpha = if (isSecArmed) 255 else 190
+            val secAlpha = if (isSecArmed) 255 else 200
 
-            // Draw first trigger (bigger icon)
+            // Draw primary trigger icon
             val primBitmap = getActionBitmap(action, primarySize, primaryTint)
             if (primBitmap != null) {
+                if (action.type == ActionType.FOLDER) {
+                    val half = primarySize / 2f + 3f
+                    canvas.drawRoundRect(cxPrimary - half, cyPrimary - half, cxPrimary + half, cyPrimary + half, 8f, 8f, folderFramePaint)
+                }
                 canvas.drawBitmap(primBitmap, cxPrimary - (primBitmap.width / 2f), cyPrimary - (primBitmap.height / 2f), null)
             }
 
-            // Draw secondary trigger (slightly smaller icon close to primary)
+            // Draw secondary trigger at bottom-right with subtle badge backing
+            val badgeRadius = secSize * 0.65f
+            badgeBgPaint.color = Color.argb(190, 18, 18, 30)
+            canvas.drawCircle(cxSec, cySec, badgeRadius, badgeBgPaint)
+            canvas.drawCircle(cxSec, cySec, badgeRadius, sliceBorderPaint)
+
             val secBitmap = getActionBitmap(secondary, secSize, secTint, alpha = secAlpha)
             if (secBitmap != null) {
+                if (secondary.type == ActionType.FOLDER) {
+                    val half = secSize / 2f + 2f
+                    canvas.drawRoundRect(cxSec - half, cySec - half, cxSec + half, cySec + half, 6f, 6f, folderFramePaint)
+                }
                 canvas.drawBitmap(secBitmap, cxSec - (secBitmap.width / 2f), cySec - (secBitmap.height / 2f), null)
             }
         }
@@ -480,7 +522,17 @@ class PieMenuView @JvmOverloads constructor(
         }
 
         // Vector Drawable with Tint and Alpha
-        val drawableRes = action.type.iconRes
+        val drawableRes = if (action.type == ActionType.FOLDER) {
+            val folder = config.folders.firstOrNull { it.id == action.data }
+            when (folder?.iconName) {
+                "ic_folder_apps" -> com.ludo.piecontrol.R.drawable.ic_folder_apps
+                "ic_folder_tools" -> com.ludo.piecontrol.R.drawable.ic_folder_tools
+                "ic_folder_star" -> com.ludo.piecontrol.R.drawable.ic_folder_star
+                else -> com.ludo.piecontrol.R.drawable.ic_action_folder
+            }
+        } else {
+            action.type.iconRes
+        }
         val drawable = ContextCompat.getDrawable(context, drawableRes)
         if (drawable != null) {
             val tinted = Color.argb(

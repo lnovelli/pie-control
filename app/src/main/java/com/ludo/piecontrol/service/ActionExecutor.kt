@@ -78,6 +78,10 @@ object ActionExecutor {
             ActionType.SHORTCUT -> {
                 launchShortcut(context, action.data)
             }
+
+            ActionType.FOLDER -> {
+                // Folders are handled by PieOverlayService opening the folder popup
+            }
         }
     }
 

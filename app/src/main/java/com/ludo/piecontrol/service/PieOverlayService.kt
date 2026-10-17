@@ -12,14 +12,23 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.ludo.piecontrol.PieControlApp
 import com.ludo.piecontrol.R
 import com.ludo.piecontrol.data.PreferencesManager
+import com.ludo.piecontrol.model.ActionType
 import com.ludo.piecontrol.model.PieAction
 import com.ludo.piecontrol.model.PieConfig
+import com.ludo.piecontrol.ui.FolderActionAdapter
 import com.ludo.piecontrol.ui.MainActivity
 import com.ludo.piecontrol.view.PieMenuView
 import com.ludo.piecontrol.view.TriggerEdgeView
@@ -282,13 +291,90 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
         pie.handleMotionEvent(event)
     }
 
+    private var folderPopupView: View? = null
+
     override fun onActionSelected(action: PieAction) {
         detachPieMenu()
-        ActionExecutor.execute(this, action)
+        if (action.type == ActionType.FOLDER) {
+            showFolderPopup(action.data)
+        } else {
+            ActionExecutor.execute(this, action)
+        }
     }
 
     override fun onDismiss() {
         detachPieMenu()
+    }
+
+    private fun showFolderPopup(folderId: String) {
+        dismissFolderPopup()
+        val folder = config.folders.firstOrNull { it.id == folderId } ?: return
+
+        try {
+            val inflater = LayoutInflater.from(this)
+            val popupView = inflater.inflate(R.layout.view_folder_popup, null)
+
+            val tvTitle = popupView.findViewById<TextView>(R.id.tvFolderHeaderTitle)
+            val ivIcon = popupView.findViewById<ImageView>(R.id.ivFolderHeaderIcon)
+            val btnClose = popupView.findViewById<ImageButton>(R.id.btnFolderClose)
+            val tvEmpty = popupView.findViewById<TextView>(R.id.tvFolderEmpty)
+            val rvActions = popupView.findViewById<RecyclerView>(R.id.rvFolderActions)
+            val scrim = popupView.findViewById<View>(R.id.folderPopupScrim)
+
+            tvTitle.text = folder.name
+            val iconRes = when (folder.iconName) {
+                "ic_folder_apps" -> R.drawable.ic_folder_apps
+                "ic_folder_tools" -> R.drawable.ic_folder_tools
+                "ic_folder_star" -> R.drawable.ic_folder_star
+                else -> R.drawable.ic_action_folder
+            }
+            ivIcon.setImageResource(iconRes)
+
+            if (folder.actions.isEmpty()) {
+                tvEmpty.visibility = View.VISIBLE
+                rvActions.visibility = View.GONE
+            } else {
+                tvEmpty.visibility = View.GONE
+                rvActions.visibility = View.VISIBLE
+                rvActions.layoutManager = GridLayoutManager(this, 3)
+                rvActions.adapter = FolderActionAdapter(this, folder.actions) { action ->
+                    dismissFolderPopup()
+                    ActionExecutor.execute(this, action)
+                }
+            }
+
+            btnClose.setOnClickListener { dismissFolderPopup() }
+            scrim.setOnClickListener { dismissFolderPopup() }
+
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                },
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                        WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.CENTER
+            }
+
+            windowManager.addView(popupView, params)
+            folderPopupView = popupView
+        } catch (e: Exception) {
+            // Log or fallback
+        }
+    }
+
+    private fun dismissFolderPopup() {
+        folderPopupView?.let {
+            try {
+                windowManager.removeView(it)
+            } catch (e: Exception) {}
+            folderPopupView = null
+        }
     }
 
     private fun detachPieMenu() {
@@ -323,6 +409,7 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
         try {
             unregisterReceiver(screenStateReceiver)
         } catch (e: Exception) {}
+        dismissFolderPopup()
         detachPieMenu()
         removeTriggers()
         super.onDestroy()
