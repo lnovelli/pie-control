@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#141425"
+        android:pathData="M27,5 h42 a22,22 0 0 1 22,22 v42 a22,22 0 0 1 -22,22 h-42 a22,22 0 0 1 -22,-22 v-42 a22,22 0 0 1 22,-22 z" />
+    <!-- Pie Control semicircle rings -->
+    <path
+        android:fillColor="#3A86B8"
+        android:pathData="M16,48 A32,32 0 0,1 48,16 L48,28 A20,20 0 0,0 28,48 Z" />
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M48,16 A32,32 0 0,1 80,48 L68,48 A20,20 0 0,0 48,28 Z" />
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M28,48 A20,20 0 0,1 48,28 L48,38 A10,10 0 0,0 38,48 Z" />
+    <path
+        android:fillColor="#FF5252"
+        android:pathData="M48,28 A20,20 0 0,1 68,48 L58,48 A10,10 0 0,0 48,38 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,42 A6,6 0 1,1 48,54 A6,6 0 1,1 48,42 Z" />
+</vector>

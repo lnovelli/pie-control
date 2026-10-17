@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PieControl</string>
+    <string name="accessibility_service_label">PieControl Accessibility</string>
+    <string name="accessibility_service_description">Enables PieControl to execute core Android system actions such as Back, Home, Recents, Notifications, Quick Settings, Power Menu, and Lock Screen.</string>
+
+    <string name="status_enabled">PieControl Active</string>
+    <string name="status_disabled">PieControl Disabled</string>
+    <string name="permission_overlay">Overlay Permission</string>
+    <string name="permission_overlay_desc">Allows PieControl trigger zone to display over other apps.</string>
+    <string name="permission_accessibility">Accessibility Service</string>
+    <string name="permission_accessibility_desc">Required to execute Back, Home, Recents, and other system actions.</string>
+    <string name="grant_permission">Grant</string>
+    <string name="granted">Granted</string>
+    <string name="enable_service">Enable</string>
+    <string name="enabled">Enabled</string>
+
+    <string name="section_activation">Trigger &amp; Activation Zone</string>
+    <string name="edge_left">Left Screen Edge</string>
+    <string name="edge_right">Right Screen Edge</string>
+    <string name="edge_bottom">Bottom Screen Edge</string>
+    <string name="trigger_size">Trigger Zone Height</string>
+    <string name="trigger_width">Trigger Zone Width (Thickness)</string>
+    <string name="trigger_pos">Trigger Vertical Position</string>
+    <string name="trigger_visible">Show Trigger Indicator</string>
+
+    <string name="section_appearance">Semicircle Appearance</string>
+    <string name="pie_size">Pie Radius / Size Scale</string>
+    <string name="pie_alpha">Transparency (Opacity)</string>
+    <string name="pie_color_bg">Background Color</string>
+    <string name="pie_color_highlight">Selection Highlight Color</string>
+    <string name="pie_color_icon">Icon Color</string>
+
+    <string name="section_rings">Rings &amp; Actions Configuration</string>
+    <string name="ring_inner_title">Inner Ring (Layer 1 - Max 5 Actions)</string>
+    <string name="ring_middle_title">Middle Ring (Layer 2 - Max 8 Actions)</string>
+    <string name="ring_outer_title">Outer Ring (Layer 3 - Max 12 Actions)</string>
+
+    <string name="section_backup">Backup &amp; Restore</string>
+    <string name="export_config">Export Configuration (JSON)</string>
+    <string name="import_config">Import Configuration (JSON)</string>
+    <string name="reset_defaults">Reset to Defaults</string>
+    <string name="backup_auto_hint">Configuration is automatically backed up to your Google account via Android Auto Backup.</string>
+
+    <string name="action_back">Back</string>
+    <string name="action_home">Home</string>
+    <string name="action_recents">Recent Apps</string>
+    <string name="action_notifications">Notifications</string>
+    <string name="action_quick_settings">Quick Settings</string>
+    <string name="action_assistant">Voice / AI Assistant</string>
+    <string name="action_power">Power Menu</string>
+    <string name="action_screenshot">Take Screenshot</string>
+    <string name="action_lock">Lock Screen</string>
+    <string name="action_vol_up">Volume Up</string>
+    <string name="action_vol_down">Volume Down</string>
+    <string name="action_flashlight">Flashlight</string>
+    <string name="action_app">Open App</string>
+    <string name="action_url">Open Website</string>
+    <string name="action_shortcut">Android Shortcut</string>
+</resources>
