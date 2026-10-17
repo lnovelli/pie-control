@@ -90,6 +90,11 @@ class PieMenuView @JvmOverloads constructor(
     // Icon Cache
     private val iconCache = mutableMapOf<String, Bitmap>()
 
+    // Safety watchdog: ensure overlay never stays permanently if an event is dropped
+    private val safetyDismissRunnable = Runnable {
+        hide()
+    }
+
     init {
         setWillNotDraw(false)
         updatePaints()
@@ -143,30 +148,50 @@ class PieMenuView @JvmOverloads constructor(
         this.hoveredIndex = -1
         updatePaints()
         visibility = VISIBLE
+
+        // Arm safety timeout (auto-dismiss if idle for 4 seconds)
+        removeCallbacks(safetyDismissRunnable)
+        postDelayed(safetyDismissRunnable, 4000)
+
         invalidate()
     }
 
     fun hide() {
+        removeCallbacks(safetyDismissRunnable)
         visibility = GONE
         hoveredLayer = -1
         hoveredIndex = -1
         listener?.onDismiss()
     }
 
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return handleMotionEvent(event)
+    }
+
     fun handleMotionEvent(event: MotionEvent): Boolean {
+        // Reset safety watchdog on any touch event
+        removeCallbacks(safetyDismissRunnable)
+        postDelayed(safetyDismissRunnable, 3000)
+
         when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                return true
+            }
             MotionEvent.ACTION_MOVE -> {
                 updateHover(event.rawX, event.rawY)
                 return true
             }
             MotionEvent.ACTION_UP -> {
-                updateHover(event.rawX, event.rawY)
-                val actionToTrigger = getHoveredAction()
-                if (actionToTrigger != null) {
-                    performHaptic(long = true)
-                    listener?.onActionSelected(actionToTrigger)
+                try {
+                    updateHover(event.rawX, event.rawY)
+                    val actionToTrigger = getHoveredAction()
+                    if (actionToTrigger != null) {
+                        performHaptic(long = true)
+                        listener?.onActionSelected(actionToTrigger)
+                    }
+                } finally {
+                    hide()
                 }
-                hide()
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {

@@ -3,13 +3,14 @@ package com.ludo.piecontrol.service
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
-import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
@@ -27,6 +28,8 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     companion object {
         const val ACTION_RELOAD_CONFIG = "com.ludo.piecontrol.RELOAD_CONFIG"
+        const val ACTION_SET_PREVIEW_MODE = "com.ludo.piecontrol.SET_PREVIEW_MODE"
+        const val EXTRA_PREVIEW_MODE = "extra_preview_mode"
         const val NOTIFICATION_ID = 1001
         var isRunning = false
             private set
@@ -42,6 +45,30 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     private var pieMenuView: PieMenuView? = null
     private var isPieAttached = false
+    private var isPreviewMode = false
+
+    private val screenStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                detachPieMenu()
+            }
+        }
+    }
+
+    private val triggerListener = object : TriggerEdgeView.TriggerListener {
+        override fun onSwipeStarted(
+            edge: PieMenuView.Edge,
+            startX: Float,
+            startY: Float,
+            event: MotionEvent
+        ) {
+            handleTriggerSwipe(edge, startX, startY, event)
+        }
+
+        override fun onSwipeEvent(event: MotionEvent) {
+            pieMenuView?.handleMotionEvent(event)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -50,16 +77,28 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
         prefsManager = PreferencesManager.getInstance(this)
         config = prefsManager.loadConfig()
 
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        registerReceiver(screenStateReceiver, filter)
+
         startAsForeground()
         setupPieMenuView()
         refreshTriggers()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_RELOAD_CONFIG) {
-            config = prefsManager.loadConfig()
-            pieMenuView?.config = config
-            refreshTriggers()
+        when (intent?.action) {
+            ACTION_RELOAD_CONFIG -> {
+                config = prefsManager.loadConfig()
+                pieMenuView?.config = config
+                refreshTriggers()
+            }
+            ACTION_SET_PREVIEW_MODE -> {
+                val preview = intent.getBooleanExtra(EXTRA_PREVIEW_MODE, false)
+                isPreviewMode = preview
+                leftTriggerView?.isPreviewMode = preview
+                rightTriggerView?.isPreviewMode = preview
+                bottomTriggerView?.isPreviewMode = preview
+            }
         }
         return START_STICKY
     }
@@ -116,10 +155,9 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
         // 1. Left Edge Trigger
         if (config.leftEdgeEnabled) {
-            val leftView = TriggerEdgeView(this, PieMenuView.Edge.LEFT) { edge, startX, startY, event ->
-                handleTriggerSwipe(edge, startX, startY, event)
-            }.apply {
+            val leftView = TriggerEdgeView(this, PieMenuView.Edge.LEFT, triggerListener).apply {
                 this.config = this@PieOverlayService.config
+                this.isPreviewMode = this@PieOverlayService.isPreviewMode
             }
             leftTriggerView = leftView
 
@@ -140,16 +178,15 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
             try {
                 windowManager.addView(leftView, leftParams)
             } catch (e: Exception) {
-                // Ignore if error adding view
+                // Handled gracefully
             }
         }
 
         // 2. Right Edge Trigger
         if (config.rightEdgeEnabled) {
-            val rightView = TriggerEdgeView(this, PieMenuView.Edge.RIGHT) { edge, startX, startY, event ->
-                handleTriggerSwipe(edge, startX, startY, event)
-            }.apply {
+            val rightView = TriggerEdgeView(this, PieMenuView.Edge.RIGHT, triggerListener).apply {
                 this.config = this@PieOverlayService.config
+                this.isPreviewMode = this@PieOverlayService.isPreviewMode
             }
             rightTriggerView = rightView
 
@@ -170,16 +207,15 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
             try {
                 windowManager.addView(rightView, rightParams)
             } catch (e: Exception) {
-                // Ignore if error adding view
+                // Handled gracefully
             }
         }
 
         // 3. Bottom Edge Trigger
         if (config.bottomEdgeEnabled) {
-            val bottomView = TriggerEdgeView(this, PieMenuView.Edge.BOTTOM) { edge, startX, startY, event ->
-                handleTriggerSwipe(edge, startX, startY, event)
-            }.apply {
+            val bottomView = TriggerEdgeView(this, PieMenuView.Edge.BOTTOM, triggerListener).apply {
                 this.config = this@PieOverlayService.config
+                this.isPreviewMode = this@PieOverlayService.isPreviewMode
             }
             bottomTriggerView = bottomView
 
@@ -200,7 +236,7 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
             try {
                 windowManager.addView(bottomView, bottomParams)
             } catch (e: Exception) {
-                // Ignore if error adding view
+                // Handled gracefully
             }
         }
     }
@@ -247,8 +283,8 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
     }
 
     override fun onActionSelected(action: PieAction) {
-        ActionExecutor.execute(this, action)
         detachPieMenu()
+        ActionExecutor.execute(this, action)
     }
 
     override fun onDismiss() {
@@ -284,6 +320,9 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     override fun onDestroy() {
         isRunning = false
+        try {
+            unregisterReceiver(screenStateReceiver)
+        } catch (e: Exception) {}
         detachPieMenu()
         removeTriggers()
         super.onDestroy()

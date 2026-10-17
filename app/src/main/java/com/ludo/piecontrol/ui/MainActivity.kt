@@ -95,6 +95,17 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         updatePermissionsStatus()
         ensureServiceState()
+        setServicePreviewMode(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        setServicePreviewMode(false)
+    }
+
+    override fun onDestroy() {
+        setServicePreviewMode(false)
+        super.onDestroy()
     }
 
     private fun setupPermissionsUi() {
@@ -570,6 +581,16 @@ class MainActivity : AppCompatActivity() {
         if (PieOverlayService.isRunning) {
             val intent = Intent(this, PieOverlayService::class.java).apply {
                 action = PieOverlayService.ACTION_RELOAD_CONFIG
+            }
+            startService(intent)
+        }
+    }
+
+    private fun setServicePreviewMode(enabled: Boolean) {
+        if (PieOverlayService.isRunning) {
+            val intent = Intent(this, PieOverlayService::class.java).apply {
+                action = PieOverlayService.ACTION_SET_PREVIEW_MODE
+                putExtra(PieOverlayService.EXTRA_PREVIEW_MODE, enabled)
             }
             startService(intent)
         }

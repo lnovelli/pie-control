@@ -13,8 +13,20 @@ import kotlin.math.abs
 class TriggerEdgeView(
     context: Context,
     val edge: PieMenuView.Edge,
-    private val onTriggerActivated: (edge: PieMenuView.Edge, startX: Float, startY: Float, event: MotionEvent) -> Unit
+    private val listener: TriggerListener
 ) : View(context) {
+
+    interface TriggerListener {
+        fun onSwipeStarted(edge: PieMenuView.Edge, startX: Float, startY: Float, event: MotionEvent)
+        fun onSwipeEvent(event: MotionEvent)
+    }
+
+    var isPreviewMode: Boolean = false
+        set(value) {
+            field = value
+            updatePaint()
+            invalidate()
+        }
 
     var config: PieConfig = PieConfig.createDefault()
         set(value) {
@@ -31,18 +43,18 @@ class TriggerEdgeView(
     private var downRawX = 0f
     private var downRawY = 0f
     private var isTriggered = false
-    private val minSwipeDistancePx = 25f * context.resources.displayMetrics.density
+    private val minSwipeDistancePx = 20f * context.resources.displayMetrics.density
 
     init {
         updatePaint()
     }
 
     private fun updatePaint() {
-        if (!config.showTriggerIndicator) {
+        if (!isPreviewMode) {
             indicatorPaint.color = Color.TRANSPARENT
             return
         }
-        val alpha = (config.triggerIndicatorAlpha * 255 / 100).coerceIn(0, 255)
+        val alpha = (config.triggerIndicatorAlpha * 255 / 100).coerceIn(40, 255)
         val highlightColor = try {
             Color.parseColor(config.highlightColorHex)
         } catch (e: Exception) {
@@ -58,7 +70,8 @@ class TriggerEdgeView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (config.showTriggerIndicator) {
+        // Indicator bars are only visible during preview mode (while configuring in MainActivity)
+        if (isPreviewMode) {
             rect.set(0f, 0f, width.toFloat(), height.toFloat())
             val cornerRadius = 8f * context.resources.displayMetrics.density
             canvas.drawRoundRect(rect, cornerRadius, cornerRadius, indicatorPaint)
@@ -75,27 +88,34 @@ class TriggerEdgeView(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if (isTriggered) return true
+                if (isTriggered) {
+                    listener.onSwipeEvent(event)
+                    return true
+                }
 
                 val dx = event.rawX - downRawX
                 val dy = event.rawY - downRawY
 
-                // Check inward swipe according to edge
+                // Detect deliberate inward swipe towards screen center
                 val swipedInward = when (edge) {
-                    PieMenuView.Edge.LEFT -> dx > minSwipeDistancePx && abs(dx) > abs(dy) * 0.7f
-                    PieMenuView.Edge.RIGHT -> (-dx) > minSwipeDistancePx && abs(dx) > abs(dy) * 0.7f
-                    PieMenuView.Edge.BOTTOM -> (-dy) > minSwipeDistancePx && abs(dy) > abs(dx) * 0.7f
+                    PieMenuView.Edge.LEFT -> dx > minSwipeDistancePx && abs(dx) > abs(dy) * 0.5f
+                    PieMenuView.Edge.RIGHT -> (-dx) > minSwipeDistancePx && abs(dx) > abs(dy) * 0.5f
+                    PieMenuView.Edge.BOTTOM -> (-dy) > minSwipeDistancePx && abs(dy) > abs(dx) * 0.5f
                 }
 
                 if (swipedInward) {
                     isTriggered = true
-                    onTriggerActivated(edge, downRawX, downRawY, event)
+                    listener.onSwipeStarted(edge, downRawX, downRawY, event)
+                    listener.onSwipeEvent(event)
                     return true
                 }
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isTriggered = false
+                if (isTriggered) {
+                    isTriggered = false
+                    listener.onSwipeEvent(event)
+                }
                 return true
             }
         }
