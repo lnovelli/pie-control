@@ -32,6 +32,18 @@ A modern, fluid Android navigation gesture app replicating the classic PieContro
 Direct APK download:
 - [https://haven.ipv64.net/download/piecontrol.apk](https://haven.ipv64.net/download/piecontrol.apk)
 
+## Settings
+
+Settings are organized into scrollable tabs:
+
+- **General**: Enable PieControl, grant permissions, and configure edge triggers.
+- **Appearance**: Adjust menu/icon sizes, opacity, highlight colors, timing, and haptics.
+- **Ring Actions**: Add, edit, delete, and drag to reorder actions across the three rings.
+- **Folders**: Create and manage groups of actions to assign to a ring.
+- **More**: Export/import settings, reset defaults, and check for updates.
+
+The selected tab and each tab's scroll position survive activity recreation. App and shortcut pickers load their lists off the UI thread and load only visible icons into a bounded cache. Slider changes are coalesced before saving and updating overlays; pending changes are saved when leaving settings.
+
 ## Permissions Required
 
 1. **Display over other apps (`SYSTEM_ALERT_WINDOW`)**: Required to display edge trigger zones and the radial pie menu over other applications.

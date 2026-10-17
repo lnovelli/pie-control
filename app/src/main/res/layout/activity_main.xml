@@ -292,6 +292,7 @@
                 <!-- Trigger Height Slider -->
                 <TextView
                     android:id="@+id/tvTriggerHeightLabel"
+                    android:labelFor="@id/sliderTriggerHeight"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Trigger Height: 260 dp"
@@ -310,6 +311,7 @@
                 <!-- Trigger Width (Thickness) Slider -->
                 <TextView
                     android:id="@+id/tvTriggerWidthLabel"
+                    android:labelFor="@id/sliderTriggerWidth"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Trigger Thickness: 24 dp"
@@ -327,6 +329,7 @@
                 <!-- Trigger Vertical Position Slider -->
                 <TextView
                     android:id="@+id/tvTriggerPosLabel"
+                    android:labelFor="@id/sliderTriggerPos"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Vertical Position: 50%"
@@ -389,6 +392,7 @@
                 <!-- Size / Scale Slider -->
                 <TextView
                     android:id="@+id/tvPieScaleLabel"
+                    android:labelFor="@id/sliderPieScale"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Semicircle Scale: 100%"
@@ -406,6 +410,7 @@
                 <!-- Icon Scale Slider -->
                 <TextView
                     android:id="@+id/tvIconScaleLabel"
+                    android:labelFor="@id/sliderIconScale"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Icon Scale: 100%"
@@ -423,6 +428,7 @@
                 <!-- Alpha / Transparency Slider -->
                 <TextView
                     android:id="@+id/tvPieAlphaLabel"
+                    android:labelFor="@id/sliderPieAlpha"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Opacity: 90%"
@@ -440,6 +446,7 @@
                 <!-- Inner Ring Distance from Finger Slider -->
                 <TextView
                     android:id="@+id/tvInnerRadiusLabel"
+                    android:labelFor="@id/sliderInnerRadius"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Distance from Finger: 60 dp"
@@ -458,6 +465,7 @@
                 <!-- Short Hover Timing Slider -->
                 <TextView
                     android:id="@+id/tvShortHoverLabel"
+                    android:labelFor="@id/sliderShortHoverDelay"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Short Hover Activation: Instant (0 ms)"
@@ -476,6 +484,7 @@
                 <!-- Long Hover / Secondary Hold Slider -->
                 <TextView
                     android:id="@+id/tvSecondaryHoldLabel"
+                    android:labelFor="@id/sliderSecondaryHoldDelay"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Secondary Action Hold Trigger: 350 ms"

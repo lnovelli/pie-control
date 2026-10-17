@@ -5,14 +5,13 @@ import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.drawable.Drawable
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.LruCache
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,6 +21,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.view.doOnLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -39,6 +40,14 @@ import com.ludo.piecontrol.service.PieAccessibilityService
 import com.ludo.piecontrol.service.PieOverlayService
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
@@ -50,6 +59,10 @@ class MainActivity : AppCompatActivity() {
     private var tabScrollPositions = IntArray(5)
     private var configSavePending = false
     private val persistConfigRunnable = Runnable { saveConfig() }
+    private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val pickerIconCache = object : LruCache<String, Bitmap>(2 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
+    }
 
     // SAF Import Launcher
     private val importFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -91,6 +104,8 @@ class MainActivity : AppCompatActivity() {
     // In-app Action Shortcut Launcher
     private var onShortcutResultCallback: ((PieAction) -> Unit)? = null
     private val shortcutLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val callback = onShortcutResultCallback
+        onShortcutResultCallback = null
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             val data = result.data!!
             val targetIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -112,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                     label = name,
                     data = uri
                 )
-                onShortcutResultCallback?.invoke(action)
+                callback?.invoke(action)
             } else {
                 Toast.makeText(this, "Could not extract shortcut data", Toast.LENGTH_SHORT).show()
             }
@@ -161,6 +176,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        activityScope.cancel()
+        pickerIconCache.evictAll()
         binding.root.removeCallbacks(persistConfigRunnable)
         onShortcutResultCallback = null
         setServicePreviewMode(false)
@@ -189,7 +206,7 @@ class MainActivity : AppCompatActivity() {
             }
             binding.settingsTitle.setText(titles[position])
             binding.settingsSummary.setText(summaries[position])
-            binding.settingsScroll.post {
+            binding.settingsScroll.doOnLayout {
                 if (selectedSettingsTab == position) {
                     binding.settingsScroll.scrollTo(0, tabScrollPositions[position])
                 }
@@ -197,6 +214,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         titles.forEach { binding.settingsTabs.addTab(binding.settingsTabs.newTab().setText(it), false) }
+        binding.settingsTabs.getTabAt(selectedSettingsTab)?.select()
+        showTab(selectedSettingsTab)
         binding.settingsTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
                 tabScrollPositions[selectedSettingsTab] = binding.settingsScroll.scrollY
@@ -206,9 +225,6 @@ class MainActivity : AppCompatActivity() {
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
-        val restoredScroll = tabScrollPositions[selectedSettingsTab]
-        binding.settingsTabs.getTabAt(selectedSettingsTab)?.select()
-        tabScrollPositions[selectedSettingsTab] = restoredScroll
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -576,7 +592,7 @@ class MainActivity : AppCompatActivity() {
         binding.rvFolders.adapter = FolderAdapter(
             folders = folders,
             onEditClick = { folder, pos -> showFolderEditDialog(folder, pos) },
-            onDeleteClick = { folder, pos ->
+            onDeleteClick = { folder, _ ->
                 MaterialAlertDialogBuilder(this)
                     .setTitle("Delete Folder")
                     .setMessage("Are you sure you want to delete folder \"${folder.name}\"?")
@@ -853,26 +869,19 @@ class MainActivity : AppCompatActivity() {
         rbSecUrl.setOnClickListener { updateSecVisibility() }
         rbSecFolder.setOnClickListener { updateSecVisibility() }
 
-        // Load installed apps
-        val pm = packageManager
-        val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
-            .map { appInfo ->
-                AppEntry(
-                    label = pm.getApplicationLabel(appInfo).toString(),
-                    packageName = appInfo.packageName,
-                    icon = pm.getApplicationIcon(appInfo)
-                )
-            }
-            .sortedBy { it.label.lowercase() }
+        val dialogScope = CoroutineScope(activityScope.coroutineContext +
+            SupervisorJob(activityScope.coroutineContext[Job]))
+        var installedApps = emptyList<AppEntry>()
 
         // Primary App Picker
         var selectedPrimaryApp: AppEntry? = if (existingAction?.type == ActionType.APP) {
-            installedApps.firstOrNull { it.packageName == existingAction.data }
+            AppEntry(existingAction.label, existingAction.data)
         } else null
         val primaryAppAdapter = AppPickerAdapter(
             items = installedApps,
-            initialSelectedPackage = selectedPrimaryApp?.packageName
+            initialSelectedPackage = selectedPrimaryApp?.packageName,
+            scope = dialogScope,
+            loadIcon = { loadPickerIcon(it.packageName) }
         ) { app -> selectedPrimaryApp = app }
         rvApps.layoutManager = LinearLayoutManager(this)
         rvApps.adapter = primaryAppAdapter
@@ -890,11 +899,13 @@ class MainActivity : AppCompatActivity() {
         // Secondary App Picker
         val existingSec = existingAction?.secondaryAction
         var selectedSecApp: AppEntry? = if (existingSec?.type == ActionType.APP) {
-            installedApps.firstOrNull { it.packageName == existingSec.data }
+            AppEntry(existingSec.label, existingSec.data)
         } else null
         val secAppAdapter = AppPickerAdapter(
             items = installedApps,
-            initialSelectedPackage = selectedSecApp?.packageName
+            initialSelectedPackage = selectedSecApp?.packageName,
+            scope = dialogScope,
+            loadIcon = { loadPickerIcon(it.packageName) }
         ) { app -> selectedSecApp = app }
         rvSecApps.layoutManager = LinearLayoutManager(this)
         rvSecApps.adapter = secAppAdapter
@@ -910,7 +921,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         // Shortcut Providers Setup
-        val shortcutProviders = loadShortcutProviders()
+        var shortcutProviders = emptyList<ShortcutProviderEntry>()
 
         // Primary Shortcut Setup
         var selectedPrimaryShortcut: PieAction? = if (existingAction?.type == ActionType.SHORTCUT) existingAction else null
@@ -923,7 +934,8 @@ class MainActivity : AppCompatActivity() {
             cardSelectedShortcut.visibility = View.GONE
             layoutShortcutProviderList.visibility = View.VISIBLE
         }
-        val primaryShortcutAdapter = ShortcutPickerAdapter(shortcutProviders) { provider ->
+        val primaryShortcutAdapter = ShortcutPickerAdapter(shortcutProviders, dialogScope,
+            { loadPickerIcon(it.packageName, it.activityName) }) { provider ->
             val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
                 component = ComponentName(provider.packageName, provider.activityName)
             }
@@ -963,7 +975,8 @@ class MainActivity : AppCompatActivity() {
             cardSecSelectedShortcut.visibility = View.GONE
             layoutSecShortcutProviderList.visibility = View.VISIBLE
         }
-        val secShortcutAdapter = ShortcutPickerAdapter(shortcutProviders) { provider ->
+        val secShortcutAdapter = ShortcutPickerAdapter(shortcutProviders, dialogScope,
+            { loadPickerIcon(it.packageName, it.activityName) }) { provider ->
             val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
                 component = ComponentName(provider.packageName, provider.activityName)
             }
@@ -1062,7 +1075,50 @@ class MainActivity : AppCompatActivity() {
             .setView(dialogView)
             .create()
 
+        dialog.setOnDismissListener {
+            dialogScope.cancel()
+            onShortcutResultCallback = null
+        }
         dialog.show()
+
+        val appSearchHint = etSearchApp.hint
+        val shortcutSearchHint = etSearchShortcut.hint
+        listOf(etSearchApp, etSecSearchApp, etSearchShortcut, etSecSearchShortcut).forEach {
+            it.hint = getString(R.string.loading_apps)
+        }
+        dialogScope.launch {
+            try {
+                installedApps = withContext(Dispatchers.IO) { loadInstalledApps() }
+                fun filteredApps(search: EditText): List<AppEntry> {
+                    val query = search.text.toString()
+                    return installedApps.filter {
+                        it.label.contains(query, ignoreCase = true) ||
+                            it.packageName.contains(query, ignoreCase = true)
+                    }
+                }
+                primaryAppAdapter.updateList(filteredApps(etSearchApp))
+                secAppAdapter.updateList(filteredApps(etSecSearchApp))
+                shortcutProviders = withContext(Dispatchers.IO) { loadShortcutProviders() }
+                fun filteredShortcuts(search: EditText): List<ShortcutProviderEntry> {
+                    val query = search.text.toString()
+                    return shortcutProviders.filter {
+                        it.label.contains(query, ignoreCase = true) ||
+                            it.packageName.contains(query, ignoreCase = true)
+                    }
+                }
+                primaryShortcutAdapter.updateList(filteredShortcuts(etSearchShortcut))
+                secShortcutAdapter.updateList(filteredShortcuts(etSecSearchShortcut))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Could not load apps", Toast.LENGTH_SHORT).show()
+            } finally {
+                etSearchApp.hint = appSearchHint
+                etSecSearchApp.hint = appSearchHint
+                etSearchShortcut.hint = shortcutSearchHint
+                etSecSearchShortcut.hint = shortcutSearchHint
+            }
+        }
 
         // Set generous spacious dialog dimensions to prevent content clipping
         val displayMetrics = resources.displayMetrics
@@ -1332,6 +1388,7 @@ class MainActivity : AppCompatActivity() {
             .setView(dialogView)
             .create()
 
+        dialog.setOnDismissListener { onShortcutResultCallback = null }
         dialog.show()
 
         val displayMetrics = resources.displayMetrics
@@ -1384,12 +1441,6 @@ class MainActivity : AppCompatActivity() {
             ActionType.QUICK_SETTINGS, ActionType.ASSISTANT, ActionType.POWER, ActionType.SCREENSHOT,
             ActionType.LOCK_SCREEN, ActionType.VOLUME_UP, ActionType.VOLUME_DOWN, ActionType.FLASHLIGHT
         )
-        val pm = packageManager
-        val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
-            .map { AppEntry(pm.getApplicationLabel(it).toString(), it.packageName, pm.getApplicationIcon(it)) }
-            .sortedBy { it.label.lowercase() }
-
         val options = arrayOf("System Action", "Installed App", "In-App Shortcut")
         MaterialAlertDialogBuilder(this)
             .setTitle("Add Action to Folder")
@@ -1406,43 +1457,63 @@ class MainActivity : AppCompatActivity() {
                             .show()
                     }
                     1 -> {
-                        val appLabels = installedApps.map { it.label }.toTypedArray()
-                        MaterialAlertDialogBuilder(this)
-                            .setTitle("Select App")
-                            .setItems(appLabels) { _, idx ->
-                                val app = installedApps[idx]
-                                onActionSelected(PieAction(type = ActionType.APP, label = app.label, data = app.packageName))
-                            }
-                            .show()
+                        showLoadedPicker("Select App", { loadInstalledApps() }, { it.label }) { app ->
+                            onActionSelected(PieAction(type = ActionType.APP, label = app.label, data = app.packageName))
+                        }
                     }
                     2 -> {
-                        val providers = loadShortcutProviders()
-                        if (providers.isEmpty()) {
-                            Toast.makeText(this, "No apps offering shortcuts found", Toast.LENGTH_SHORT).show()
-                            return@setItems
-                        }
-                        val providerNames = providers.map { it.label }.toTypedArray()
-                        MaterialAlertDialogBuilder(this)
-                            .setTitle("Select Shortcut App")
-                            .setItems(providerNames) { _, pIdx ->
-                                val provider = providers[pIdx]
-                                val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
-                                    component = ComponentName(provider.packageName, provider.activityName)
-                                }
-                                onShortcutResultCallback = { action ->
-                                    onActionSelected(action)
-                                }
-                                try {
-                                    shortcutLauncher.launch(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(this, "Could not open shortcut picker: ${e.message}", Toast.LENGTH_SHORT).show()
-                                }
+                        showLoadedPicker("Select Shortcut App", { loadShortcutProviders() }, { it.label }) { provider ->
+                            val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                                component = ComponentName(provider.packageName, provider.activityName)
                             }
-                            .show()
+                            onShortcutResultCallback = onActionSelected
+                            try {
+                                shortcutLauncher.launch(intent)
+                            } catch (e: Exception) {
+                                onShortcutResultCallback = null
+                                Toast.makeText(this, "Could not open shortcut picker: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 }
             }
             .show()
+    }
+
+    private fun <T> showLoadedPicker(
+        title: String,
+        load: () -> List<T>,
+        label: (T) -> String,
+        onSelected: (T) -> Unit
+    ) {
+        val loading = MaterialAlertDialogBuilder(this)
+            .setMessage(R.string.loading_apps)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        val job = activityScope.launch {
+            try {
+                val items = withContext(Dispatchers.IO) { load() }
+                loading.setOnDismissListener(null)
+                loading.dismiss()
+                if (items.isEmpty()) {
+                    Toast.makeText(this@MainActivity, "No matching apps found", Toast.LENGTH_SHORT).show()
+                } else {
+                    MaterialAlertDialogBuilder(this@MainActivity)
+                        .setTitle(title)
+                        .setItems(items.map(label).toTypedArray()) { _, index -> onSelected(items[index]) }
+                        .show()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Could not load apps", Toast.LENGTH_SHORT).show()
+            } finally {
+                loading.setOnDismissListener(null)
+                loading.dismiss()
+            }
+        }
+        loading.setOnDismissListener { job.cancel() }
+        loading.show()
     }
 
     private fun showImportOptionsDialog() {
@@ -1532,27 +1603,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Helper data and adapter for App Picker
-    data class AppEntry(val label: String, val packageName: String, val icon: Drawable)
+    private fun loadInstalledApps(): List<AppEntry> {
+        val pm = packageManager
+        return pm.getInstalledApplications(0)
+            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
+            .map { AppEntry(pm.getApplicationLabel(it).toString(), it.packageName) }
+            .sortedBy { it.label.lowercase() }
+    }
+
+    private suspend fun loadPickerIcon(packageName: String, activityName: String? = null): Bitmap? =
+        withContext(Dispatchers.IO) {
+            val key = "$packageName/$activityName"
+            pickerIconCache.get(key)?.let { return@withContext it }
+            try {
+                val drawable = if (activityName == null) {
+                    packageManager.getApplicationIcon(packageName)
+                } else {
+                    packageManager.getActivityIcon(ComponentName(packageName, activityName))
+                }
+                val size = (40 * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+                drawable.toBitmap(size, size).also { pickerIconCache.put(key, it) }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    data class AppEntry(val label: String, val packageName: String)
 
     class AppPickerAdapter(
         private var items: List<AppEntry>,
         initialSelectedPackage: String? = null,
+        private val scope: CoroutineScope,
+        private val loadIcon: suspend (AppEntry) -> Bitmap?,
         private val onSelect: (AppEntry) -> Unit
     ) : RecyclerView.Adapter<AppPickerAdapter.ViewHolder>() {
 
-        private var selectedPosition = if (initialSelectedPackage != null) {
-            items.indexOfFirst { it.packageName == initialSelectedPackage }
-        } else -1
+        private var selectedPackage = initialSelectedPackage
 
         fun updateList(newItems: List<AppEntry>) {
             items = newItems
-            selectedPosition = -1
             notifyDataSetChanged()
         }
 
         class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
             val ivIcon: ImageView = view.findViewById(R.id.ivAppIcon)
             val tvName: TextView = view.findViewById(R.id.tvAppName)
+            var iconJob: Job? = null
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -1563,21 +1659,34 @@ class MainActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
             holder.tvName.text = item.label
-            holder.ivIcon.setImageDrawable(item.icon)
+            holder.iconJob?.cancel()
+            holder.ivIcon.setImageResource(R.drawable.ic_action_app)
+            holder.iconJob = scope.launch {
+                loadIcon(item)?.let { holder.ivIcon.setImageBitmap(it) }
+            }
 
-            if (position == selectedPosition) {
+            if (item.packageName == selectedPackage) {
                 holder.view.setBackgroundColor(Color.parseColor("#3300E676"))
             } else {
                 holder.view.setBackgroundColor(Color.TRANSPARENT)
             }
 
             holder.view.setOnClickListener {
-                val prev = selectedPosition
-                selectedPosition = holder.adapterPosition
+                val position = holder.bindingAdapterPosition
+                if (position == RecyclerView.NO_POSITION) return@setOnClickListener
+                val selected = items[position]
+                val prev = items.indexOfFirst { it.packageName == selectedPackage }
+                selectedPackage = selected.packageName
                 if (prev != -1) notifyItemChanged(prev)
-                notifyItemChanged(selectedPosition)
-                onSelect(item)
+                notifyItemChanged(position)
+                onSelect(selected)
             }
+        }
+
+        override fun onViewRecycled(holder: ViewHolder) {
+            holder.iconJob?.cancel()
+            holder.ivIcon.setImageDrawable(null)
+            super.onViewRecycled(holder)
         }
 
         override fun getItemCount(): Int = items.size
@@ -1587,8 +1696,7 @@ class MainActivity : AppCompatActivity() {
     data class ShortcutProviderEntry(
         val label: String,
         val packageName: String,
-        val activityName: String,
-        val icon: Drawable
+        val activityName: String
     )
 
     private fun loadShortcutProviders(): List<ShortcutProviderEntry> {
@@ -1598,20 +1706,22 @@ class MainActivity : AppCompatActivity() {
             ShortcutProviderEntry(
                 label = resolveInfo.loadLabel(pm).toString(),
                 packageName = resolveInfo.activityInfo.packageName,
-                activityName = resolveInfo.activityInfo.name,
-                icon = resolveInfo.loadIcon(pm)
+                activityName = resolveInfo.activityInfo.name
             )
         }.sortedBy { it.label.lowercase() }
     }
 
     class ShortcutPickerAdapter(
         private var items: List<ShortcutProviderEntry>,
+        private val scope: CoroutineScope,
+        private val loadIcon: suspend (ShortcutProviderEntry) -> Bitmap?,
         private val onSelect: (ShortcutProviderEntry) -> Unit
     ) : RecyclerView.Adapter<ShortcutPickerAdapter.ViewHolder>() {
 
         class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
             val ivIcon: ImageView = view.findViewById(R.id.ivAppIcon)
             val tvName: TextView = view.findViewById(R.id.tvAppName)
+            var iconJob: Job? = null
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -1622,11 +1732,21 @@ class MainActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
             holder.tvName.text = item.label
-            holder.ivIcon.setImageDrawable(item.icon)
+            holder.iconJob?.cancel()
+            holder.ivIcon.setImageResource(R.drawable.ic_action_shortcut)
+            holder.iconJob = scope.launch {
+                loadIcon(item)?.let { holder.ivIcon.setImageBitmap(it) }
+            }
             holder.view.setOnClickListener { onSelect(item) }
         }
 
         override fun getItemCount(): Int = items.size
+
+        override fun onViewRecycled(holder: ViewHolder) {
+            holder.iconJob?.cancel()
+            holder.ivIcon.setImageDrawable(null)
+            super.onViewRecycled(holder)
+        }
 
         fun updateList(newItems: List<ShortcutProviderEntry>) {
             items = newItems
