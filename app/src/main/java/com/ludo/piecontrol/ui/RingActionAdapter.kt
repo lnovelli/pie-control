@@ -78,16 +78,17 @@ class RingActionAdapter(
         // Tap on action card to reassign / edit
         binding.root.setOnClickListener {
             val pos = holder.adapterPosition
-            if (pos != RecyclerView.NO_POSITION) {
+            if (pos != RecyclerView.NO_POSITION && pos in actions.indices) {
                 onActionClick(actions[pos], pos)
+            } else {
+                onActionClick(action, position)
             }
         }
 
         binding.btnDeleteAction.setOnClickListener {
             val pos = holder.adapterPosition
-            if (pos != RecyclerView.NO_POSITION) {
-                onActionDelete(actions[pos], pos)
-            }
+            val act = if (pos != RecyclerView.NO_POSITION && pos in actions.indices) actions[pos] else action
+            onActionDelete(act, pos)
         }
 
         binding.ivDragHandle.setOnTouchListener { _, event ->

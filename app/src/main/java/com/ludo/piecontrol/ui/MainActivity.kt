@@ -570,12 +570,31 @@ class MainActivity : AppCompatActivity() {
             onActionClick = { action, _ ->
                 showAddActionDialog(layerNum, action)
             },
-            onActionDelete = { _, pos ->
-                if (pos in actions.indices) {
-                    actions.removeAt(pos)
-                    saveConfig()
-                    renderRingActions()
+            onActionDelete = { action, pos ->
+                val ringName = when (layerNum) {
+                    1 -> "Inner Ring"
+                    2 -> "Middle Ring"
+                    else -> "Outer Ring"
                 }
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("Delete Action")
+                    .setMessage("Remove \"${action.label}\" from $ringName?")
+                    .setPositiveButton("Remove") { _, _ ->
+                        val targetList = when (layerNum) {
+                            1 -> config.layer1
+                            2 -> config.layer2
+                            else -> config.layer3
+                        }
+                        val removed = targetList.removeAll { it.id == action.id }
+                        if (!removed && pos in targetList.indices) {
+                            targetList.removeAt(pos)
+                        }
+                        saveConfig()
+                        renderRingActions()
+                        Toast.makeText(this, "Removed \"${action.label}\"", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
             },
             onOrderChanged = {
                 saveConfig()
