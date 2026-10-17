@@ -1,6 +1,8 @@
 package com.ludo.piecontrol.ui
 
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.Activity
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -76,6 +78,37 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Toast.makeText(this, "Failed to save file: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // In-app Action Shortcut Launcher
+    private var onShortcutResultCallback: ((PieAction) -> Unit)? = null
+    private val shortcutLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val data = result.data!!
+            val targetIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
+            }
+            val name = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME)
+                ?: targetIntent?.getStringExtra(Intent.EXTRA_SHORTCUT_NAME)
+                ?: "Shortcut"
+            val uri = targetIntent?.toUri(Intent.URI_INTENT_SCHEME)
+                ?: data.dataString
+                ?: data.toUri(Intent.URI_INTENT_SCHEME)
+
+            if (!uri.isNullOrEmpty()) {
+                val action = PieAction(
+                    type = ActionType.SHORTCUT,
+                    label = name,
+                    data = uri
+                )
+                onShortcutResultCallback?.invoke(action)
+            } else {
+                Toast.makeText(this, "Could not extract shortcut data", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -600,11 +633,19 @@ class MainActivity : AppCompatActivity() {
         // Primary views
         val rbSystem = dialogView.findViewById<RadioButton>(R.id.rbSystem)
         val rbApp = dialogView.findViewById<RadioButton>(R.id.rbApp)
+        val rbShortcut = dialogView.findViewById<RadioButton>(R.id.rbShortcut)
         val rbUrl = dialogView.findViewById<RadioButton>(R.id.rbUrl)
         val rbFolder = dialogView.findViewById<RadioButton>(R.id.rbFolder)
 
         val layoutSystem = dialogView.findViewById<LinearLayout>(R.id.layoutSystemActions)
         val layoutApp = dialogView.findViewById<LinearLayout>(R.id.layoutAppPicker)
+        val layoutShortcut = dialogView.findViewById<LinearLayout>(R.id.layoutShortcutPicker)
+        val cardSelectedShortcut = dialogView.findViewById<LinearLayout>(R.id.cardSelectedShortcut)
+        val tvSelectedShortcutName = dialogView.findViewById<TextView>(R.id.tvSelectedShortcutName)
+        val btnChangeShortcut = dialogView.findViewById<Button>(R.id.btnChangeShortcut)
+        val layoutShortcutProviderList = dialogView.findViewById<LinearLayout>(R.id.layoutShortcutProviderList)
+        val etSearchShortcut = dialogView.findViewById<EditText>(R.id.etSearchShortcut)
+        val rvShortcuts = dialogView.findViewById<RecyclerView>(R.id.rvShortcutsList)
         val layoutUrl = dialogView.findViewById<LinearLayout>(R.id.layoutUrl)
         val layoutFolder = dialogView.findViewById<LinearLayout>(R.id.layoutFolderPicker)
 
@@ -620,11 +661,19 @@ class MainActivity : AppCompatActivity() {
         val layoutSecContainer = dialogView.findViewById<LinearLayout>(R.id.layoutSecondaryContainer)
         val rbSecSystem = dialogView.findViewById<RadioButton>(R.id.rbSecSystem)
         val rbSecApp = dialogView.findViewById<RadioButton>(R.id.rbSecApp)
+        val rbSecShortcut = dialogView.findViewById<RadioButton>(R.id.rbSecShortcut)
         val rbSecUrl = dialogView.findViewById<RadioButton>(R.id.rbSecUrl)
         val rbSecFolder = dialogView.findViewById<RadioButton>(R.id.rbSecFolder)
 
         val layoutSecSystem = dialogView.findViewById<LinearLayout>(R.id.layoutSecSystemActions)
         val layoutSecApp = dialogView.findViewById<LinearLayout>(R.id.layoutSecAppPicker)
+        val layoutSecShortcut = dialogView.findViewById<LinearLayout>(R.id.layoutSecShortcutPicker)
+        val cardSecSelectedShortcut = dialogView.findViewById<LinearLayout>(R.id.cardSecSelectedShortcut)
+        val tvSecSelectedShortcutName = dialogView.findViewById<TextView>(R.id.tvSecSelectedShortcutName)
+        val btnSecChangeShortcut = dialogView.findViewById<Button>(R.id.btnSecChangeShortcut)
+        val layoutSecShortcutProviderList = dialogView.findViewById<LinearLayout>(R.id.layoutSecShortcutProviderList)
+        val etSecSearchShortcut = dialogView.findViewById<EditText>(R.id.etSecSearchShortcut)
+        val rvSecShortcuts = dialogView.findViewById<RecyclerView>(R.id.rvSecShortcutsList)
         val layoutSecUrl = dialogView.findViewById<LinearLayout>(R.id.layoutSecUrl)
         val layoutSecFolder = dialogView.findViewById<LinearLayout>(R.id.layoutSecFolderPicker)
 
@@ -662,11 +711,13 @@ class MainActivity : AppCompatActivity() {
         fun updatePrimaryVisibility() {
             layoutSystem.visibility = if (rbSystem.isChecked) View.VISIBLE else View.GONE
             layoutApp.visibility = if (rbApp.isChecked) View.VISIBLE else View.GONE
+            layoutShortcut.visibility = if (rbShortcut.isChecked) View.VISIBLE else View.GONE
             layoutUrl.visibility = if (rbUrl.isChecked) View.VISIBLE else View.GONE
             layoutFolder.visibility = if (rbFolder.isChecked) View.VISIBLE else View.GONE
         }
         rbSystem.setOnClickListener { updatePrimaryVisibility() }
         rbApp.setOnClickListener { updatePrimaryVisibility() }
+        rbShortcut.setOnClickListener { updatePrimaryVisibility() }
         rbUrl.setOnClickListener { updatePrimaryVisibility() }
         rbFolder.setOnClickListener { updatePrimaryVisibility() }
 
@@ -677,11 +728,13 @@ class MainActivity : AppCompatActivity() {
         fun updateSecVisibility() {
             layoutSecSystem.visibility = if (rbSecSystem.isChecked) View.VISIBLE else View.GONE
             layoutSecApp.visibility = if (rbSecApp.isChecked) View.VISIBLE else View.GONE
+            layoutSecShortcut.visibility = if (rbSecShortcut.isChecked) View.VISIBLE else View.GONE
             layoutSecUrl.visibility = if (rbSecUrl.isChecked) View.VISIBLE else View.GONE
             layoutSecFolder.visibility = if (rbSecFolder.isChecked) View.VISIBLE else View.GONE
         }
         rbSecSystem.setOnClickListener { updateSecVisibility() }
         rbSecApp.setOnClickListener { updateSecVisibility() }
+        rbSecShortcut.setOnClickListener { updateSecVisibility() }
         rbSecUrl.setOnClickListener { updateSecVisibility() }
         rbSecFolder.setOnClickListener { updateSecVisibility() }
 
@@ -741,11 +794,98 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
+        // Shortcut Providers Setup
+        val shortcutProviders = loadShortcutProviders()
+
+        // Primary Shortcut Setup
+        var selectedPrimaryShortcut: PieAction? = if (existingAction?.type == ActionType.SHORTCUT) existingAction else null
+        if (selectedPrimaryShortcut != null) {
+            cardSelectedShortcut.visibility = View.VISIBLE
+            layoutShortcutProviderList.visibility = View.GONE
+            tvSelectedShortcutName.text = selectedPrimaryShortcut!!.label
+        }
+        btnChangeShortcut.setOnClickListener {
+            cardSelectedShortcut.visibility = View.GONE
+            layoutShortcutProviderList.visibility = View.VISIBLE
+        }
+        val primaryShortcutAdapter = ShortcutPickerAdapter(shortcutProviders) { provider ->
+            val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                component = ComponentName(provider.packageName, provider.activityName)
+            }
+            onShortcutResultCallback = { action ->
+                selectedPrimaryShortcut = action
+                cardSelectedShortcut.visibility = View.VISIBLE
+                layoutShortcutProviderList.visibility = View.GONE
+                tvSelectedShortcutName.text = action.label
+            }
+            try {
+                shortcutLauncher.launch(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Could not open shortcut picker: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+        rvShortcuts.layoutManager = LinearLayoutManager(this)
+        rvShortcuts.adapter = primaryShortcutAdapter
+
+        etSearchShortcut.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val q = s?.toString()?.lowercase() ?: ""
+                val filtered = if (q.isEmpty()) shortcutProviders else shortcutProviders.filter { it.label.lowercase().contains(q) || it.packageName.lowercase().contains(q) }
+                primaryShortcutAdapter.updateList(filtered)
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        // Secondary Shortcut Setup
+        var selectedSecShortcut: PieAction? = if (existingSec?.type == ActionType.SHORTCUT) existingSec else null
+        if (selectedSecShortcut != null) {
+            cardSecSelectedShortcut.visibility = View.VISIBLE
+            layoutSecShortcutProviderList.visibility = View.GONE
+            tvSecSelectedShortcutName.text = selectedSecShortcut!!.label
+        }
+        btnSecChangeShortcut.setOnClickListener {
+            cardSecSelectedShortcut.visibility = View.GONE
+            layoutSecShortcutProviderList.visibility = View.VISIBLE
+        }
+        val secShortcutAdapter = ShortcutPickerAdapter(shortcutProviders) { provider ->
+            val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                component = ComponentName(provider.packageName, provider.activityName)
+            }
+            onShortcutResultCallback = { action ->
+                selectedSecShortcut = action
+                cardSecSelectedShortcut.visibility = View.VISIBLE
+                layoutSecShortcutProviderList.visibility = View.GONE
+                tvSecSelectedShortcutName.text = action.label
+            }
+            try {
+                shortcutLauncher.launch(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Could not open shortcut picker: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+        rvSecShortcuts.layoutManager = LinearLayoutManager(this)
+        rvSecShortcuts.adapter = secShortcutAdapter
+
+        etSecSearchShortcut.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val q = s?.toString()?.lowercase() ?: ""
+                val filtered = if (q.isEmpty()) shortcutProviders else shortcutProviders.filter { it.label.lowercase().contains(q) || it.packageName.lowercase().contains(q) }
+                secShortcutAdapter.updateList(filtered)
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
         // Populate existing primary action
         if (existingAction != null) {
             when (existingAction.type) {
                 ActionType.APP -> {
                     rbApp.isChecked = true
+                    updatePrimaryVisibility()
+                }
+                ActionType.SHORTCUT -> {
+                    rbShortcut.isChecked = true
                     updatePrimaryVisibility()
                 }
                 ActionType.URL -> {
@@ -775,6 +915,10 @@ class MainActivity : AppCompatActivity() {
                 when (existingSec.type) {
                     ActionType.APP -> {
                         rbSecApp.isChecked = true
+                        updateSecVisibility()
+                    }
+                    ActionType.SHORTCUT -> {
+                        rbSecShortcut.isChecked = true
                         updateSecVisibility()
                     }
                     ActionType.URL -> {
@@ -852,6 +996,14 @@ class MainActivity : AppCompatActivity() {
                         PieAction(type = ActionType.APP, label = selectedPrimaryApp!!.label, data = selectedPrimaryApp!!.packageName)
                     }
                 }
+                rbShortcut.isChecked -> {
+                    if (selectedPrimaryShortcut == null) {
+                        Toast.makeText(this, "Please select an in-app shortcut from the list", Toast.LENGTH_SHORT).show()
+                        null
+                    } else {
+                        selectedPrimaryShortcut
+                    }
+                }
                 rbUrl.isChecked -> {
                     val url = etWebUrl.text?.toString()?.trim() ?: ""
                     val label = etWebLabel.text?.toString()?.trim() ?: ""
@@ -889,6 +1041,14 @@ class MainActivity : AppCompatActivity() {
                             null
                         } else {
                             PieAction(type = ActionType.APP, label = selectedSecApp!!.label, data = selectedSecApp!!.packageName)
+                        }
+                    }
+                    rbSecShortcut.isChecked -> {
+                        if (selectedSecShortcut == null) {
+                            Toast.makeText(this, "Please select a secondary in-app shortcut", Toast.LENGTH_SHORT).show()
+                            null
+                        } else {
+                            selectedSecShortcut
                         }
                     }
                     rbSecUrl.isChecked -> {
@@ -1059,28 +1219,56 @@ class MainActivity : AppCompatActivity() {
             .map { AppEntry(pm.getApplicationLabel(it).toString(), it.packageName, pm.getApplicationIcon(it)) }
             .sortedBy { it.label.lowercase() }
 
-        val options = arrayOf("System Action", "Installed App")
+        val options = arrayOf("System Action", "Installed App", "In-App Shortcut")
         MaterialAlertDialogBuilder(this)
             .setTitle("Add Action to Folder")
             .setItems(options) { _, which ->
-                if (which == 0) {
-                    val labels = systemActionTypes.map { it.defaultLabel }.toTypedArray()
-                    MaterialAlertDialogBuilder(this)
-                        .setTitle("Select System Action")
-                        .setItems(labels) { _, idx ->
-                            val type = systemActionTypes[idx]
-                            onActionSelected(PieAction(type = type, label = type.defaultLabel))
+                when (which) {
+                    0 -> {
+                        val labels = systemActionTypes.map { it.defaultLabel }.toTypedArray()
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle("Select System Action")
+                            .setItems(labels) { _, idx ->
+                                val type = systemActionTypes[idx]
+                                onActionSelected(PieAction(type = type, label = type.defaultLabel))
+                            }
+                            .show()
+                    }
+                    1 -> {
+                        val appLabels = installedApps.map { it.label }.toTypedArray()
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle("Select App")
+                            .setItems(appLabels) { _, idx ->
+                                val app = installedApps[idx]
+                                onActionSelected(PieAction(type = ActionType.APP, label = app.label, data = app.packageName))
+                            }
+                            .show()
+                    }
+                    2 -> {
+                        val providers = loadShortcutProviders()
+                        if (providers.isEmpty()) {
+                            Toast.makeText(this, "No apps offering shortcuts found", Toast.LENGTH_SHORT).show()
+                            return@setItems
                         }
-                        .show()
-                } else {
-                    val appLabels = installedApps.map { it.label }.toTypedArray()
-                    MaterialAlertDialogBuilder(this)
-                        .setTitle("Select App")
-                        .setItems(appLabels) { _, idx ->
-                            val app = installedApps[idx]
-                            onActionSelected(PieAction(type = ActionType.APP, label = app.label, data = app.packageName))
-                        }
-                        .show()
+                        val providerNames = providers.map { it.label }.toTypedArray()
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle("Select Shortcut App")
+                            .setItems(providerNames) { _, pIdx ->
+                                val provider = providers[pIdx]
+                                val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                                    component = ComponentName(provider.packageName, provider.activityName)
+                                }
+                                onShortcutResultCallback = { action ->
+                                    onActionSelected(action)
+                                }
+                                try {
+                                    shortcutLauncher.launch(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(this, "Could not open shortcut picker: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .show()
+                    }
                 }
             }
             .show()
@@ -1214,5 +1402,56 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun getItemCount(): Int = items.size
+    }
+
+    // Helper data and adapter for Shortcut Provider Picker
+    data class ShortcutProviderEntry(
+        val label: String,
+        val packageName: String,
+        val activityName: String,
+        val icon: Drawable
+    )
+
+    private fun loadShortcutProviders(): List<ShortcutProviderEntry> {
+        val pm = packageManager
+        val queryIntent = Intent(Intent.ACTION_CREATE_SHORTCUT)
+        return pm.queryIntentActivities(queryIntent, 0).map { resolveInfo ->
+            ShortcutProviderEntry(
+                label = resolveInfo.loadLabel(pm).toString(),
+                packageName = resolveInfo.activityInfo.packageName,
+                activityName = resolveInfo.activityInfo.name,
+                icon = resolveInfo.loadIcon(pm)
+            )
+        }.sortedBy { it.label.lowercase() }
+    }
+
+    class ShortcutPickerAdapter(
+        private var items: List<ShortcutProviderEntry>,
+        private val onSelect: (ShortcutProviderEntry) -> Unit
+    ) : RecyclerView.Adapter<ShortcutPickerAdapter.ViewHolder>() {
+
+        class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+            val ivIcon: ImageView = view.findViewById(R.id.ivAppIcon)
+            val tvName: TextView = view.findViewById(R.id.tvAppName)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_app_picker, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val item = items[position]
+            holder.tvName.text = item.label
+            holder.ivIcon.setImageDrawable(item.icon)
+            holder.view.setOnClickListener { onSelect(item) }
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        fun updateList(newItems: List<ShortcutProviderEntry>) {
+            items = newItems
+            notifyDataSetChanged()
+        }
     }
 }

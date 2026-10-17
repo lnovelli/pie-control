@@ -1,6 +1,7 @@
 package com.ludo.piecontrol.view
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.*
 import android.os.Build
 import android.os.VibrationEffect
@@ -522,6 +523,24 @@ class PieMenuView @JvmOverloads constructor(
                 appIcon.draw(canvas)
                 iconCache[cacheKey] = bitmap
                 return bitmap
+            } catch (e: Exception) {
+                // Fall back to default icon
+            }
+        }
+
+        if (action.type == ActionType.SHORTCUT && action.data.isNotEmpty()) {
+            try {
+                val parsed = Intent.parseUri(action.data, Intent.URI_INTENT_SCHEME)
+                val pkg = parsed.`package` ?: parsed.component?.packageName
+                    ?: context.packageManager.resolveActivity(parsed, 0)?.activityInfo?.packageName
+                if (pkg != null) {
+                    val appIcon = context.packageManager.getApplicationIcon(pkg)
+                    appIcon.setBounds(0, 0, safeSize, safeSize)
+                    appIcon.alpha = alpha
+                    appIcon.draw(canvas)
+                    iconCache[cacheKey] = bitmap
+                    return bitmap
+                }
             } catch (e: Exception) {
                 // Fall back to default icon
             }

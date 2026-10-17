@@ -1,7 +1,9 @@
 package com.ludo.piecontrol.ui
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -35,15 +37,29 @@ class FolderActionAdapter(
         val action = actions[position]
         holder.label.text = action.label
 
-        if (action.type == ActionType.APP && action.data.isNotEmpty()) {
-            try {
-                val appIcon = context.packageManager.getApplicationIcon(action.data)
-                holder.icon.setImageDrawable(appIcon)
-                holder.icon.clearColorFilter()
-            } catch (e: Exception) {
-                holder.icon.setImageResource(action.type.iconRes)
-                holder.icon.setColorFilter(Color.WHITE)
+        fun getActionDrawable(act: PieAction): Drawable? {
+            if (act.type == ActionType.APP && act.data.isNotEmpty()) {
+                try {
+                    return context.packageManager.getApplicationIcon(act.data)
+                } catch (e: Exception) {}
             }
+            if (act.type == ActionType.SHORTCUT && act.data.isNotEmpty()) {
+                try {
+                    val parsed = Intent.parseUri(act.data, Intent.URI_INTENT_SCHEME)
+                    val pkg = parsed.`package` ?: parsed.component?.packageName
+                        ?: context.packageManager.resolveActivity(parsed, 0)?.activityInfo?.packageName
+                    if (pkg != null) {
+                        return context.packageManager.getApplicationIcon(pkg)
+                    }
+                } catch (e: Exception) {}
+            }
+            return null
+        }
+
+        val customDrawable = getActionDrawable(action)
+        if (customDrawable != null) {
+            holder.icon.setImageDrawable(customDrawable)
+            holder.icon.clearColorFilter()
         } else {
             holder.icon.setImageResource(action.type.iconRes)
             holder.icon.setColorFilter(Color.WHITE)

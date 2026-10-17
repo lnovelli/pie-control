@@ -40,66 +40,81 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="10dp" />
 
-            <RadioGroup
-                android:id="@+id/rgActionCategory"
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:scrollbars="none"
+                android:fillViewport="true"
                 android:layout_marginBottom="12dp">
 
-                <RadioButton
-                    android:id="@+id/rbSystem"
-                    android:layout_width="0dp"
+                <RadioGroup
+                    android:id="@+id/rgActionCategory"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:checked="true"
-                    android:text="System"
-                    android:textSize="11sp"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:paddingStart="2dp"
-                    android:paddingEnd="2dp"
-                    android:textColor="@color/text_primary" />
+                    android:orientation="horizontal">
 
-                <RadioButton
-                    android:id="@+id/rbApp"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="App"
-                    android:textSize="11sp"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:paddingStart="2dp"
-                    android:paddingEnd="2dp"
-                    android:textColor="@color/text_primary" />
+                    <RadioButton
+                        android:id="@+id/rbSystem"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="System"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="6dp"
+                        android:textColor="@color/text_primary" />
 
-                <RadioButton
-                    android:id="@+id/rbUrl"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="URL"
-                    android:textSize="11sp"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:paddingStart="2dp"
-                    android:paddingEnd="2dp"
-                    android:textColor="@color/text_primary" />
+                    <RadioButton
+                        android:id="@+id/rbApp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="App"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="6dp"
+                        android:textColor="@color/text_primary" />
 
-                <RadioButton
-                    android:id="@+id/rbFolder"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Folder"
-                    android:textSize="11sp"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:paddingStart="2dp"
-                    android:paddingEnd="2dp"
-                    android:textColor="@color/text_primary" />
-            </RadioGroup>
+                    <RadioButton
+                        android:id="@+id/rbShortcut"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Shortcut"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="6dp"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/rbUrl"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="URL"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="6dp"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/rbFolder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Folder"
+                        android:textSize="11sp"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="6dp"
+                        android:textColor="@color/text_primary" />
+                </RadioGroup>
+            </HorizontalScrollView>
 
             <!-- Primary System Container -->
             <LinearLayout
@@ -140,6 +155,99 @@
                     android:id="@+id/rvAppsList"
                     android:layout_width="match_parent"
                     android:layout_height="180dp" />
+            </LinearLayout>
+
+            <!-- Primary Shortcut Picker Container -->
+            <LinearLayout
+                android:id="@+id/layoutShortcutPicker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <!-- Card when a shortcut is selected -->
+                <LinearLayout
+                    android:id="@+id/cardSelectedShortcut"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="@drawable/bg_card"
+                    android:visibility="gone"
+                    android:layout_marginBottom="8dp">
+
+                    <ImageView
+                        android:id="@+id/ivSelectedShortcutIcon"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/ic_action_shortcut" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvSelectedShortcutName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Selected Shortcut"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Configured successfully"
+                            android:textColor="@color/accent_green"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/btnChangeShortcut"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Change"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layoutShortcutProviderList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Select an app to choose an in-app action/document:"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="6dp" />
+
+                    <EditText
+                        android:id="@+id/etSearchShortcut"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:background="@drawable/bg_card"
+                        android:hint="Search shortcut apps..."
+                        android:textColorHint="@color/text_secondary"
+                        android:textColor="@color/text_primary"
+                        android:paddingHorizontal="10dp"
+                        android:textSize="13sp"
+                        android:layout_marginBottom="8dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvShortcutsList"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp"
+                        android:scrollbars="vertical" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Primary Web URL Container -->
@@ -231,66 +339,81 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <RadioGroup
-                    android:id="@+id/rgSecondaryCategory"
+                <HorizontalScrollView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
+                    android:scrollbars="none"
+                    android:fillViewport="true"
                     android:layout_marginBottom="12dp">
 
-                    <RadioButton
-                        android:id="@+id/rbSecSystem"
-                        android:layout_width="0dp"
+                    <RadioGroup
+                        android:id="@+id/rgSecondaryCategory"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:checked="true"
-                        android:text="System"
-                        android:textSize="11sp"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        android:paddingStart="2dp"
-                        android:paddingEnd="2dp"
-                        android:textColor="@color/text_primary" />
+                        android:orientation="horizontal">
 
-                    <RadioButton
-                        android:id="@+id/rbSecApp"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="App"
-                        android:textSize="11sp"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        android:paddingStart="2dp"
-                        android:paddingEnd="2dp"
-                        android:textColor="@color/text_primary" />
+                        <RadioButton
+                            android:id="@+id/rbSecSystem"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="System"
+                            android:textSize="11sp"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="6dp"
+                            android:textColor="@color/text_primary" />
 
-                    <RadioButton
-                        android:id="@+id/rbSecUrl"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="URL"
-                        android:textSize="11sp"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        android:paddingStart="2dp"
-                        android:paddingEnd="2dp"
-                        android:textColor="@color/text_primary" />
+                        <RadioButton
+                            android:id="@+id/rbSecApp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="App"
+                            android:textSize="11sp"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="6dp"
+                            android:textColor="@color/text_primary" />
 
-                    <RadioButton
-                        android:id="@+id/rbSecFolder"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Folder"
-                        android:textSize="11sp"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        android:paddingStart="2dp"
-                        android:paddingEnd="2dp"
-                        android:textColor="@color/text_primary" />
-                </RadioGroup>
+                        <RadioButton
+                            android:id="@+id/rbSecShortcut"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Shortcut"
+                            android:textSize="11sp"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="6dp"
+                            android:textColor="@color/text_primary" />
+
+                        <RadioButton
+                            android:id="@+id/rbSecUrl"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="URL"
+                            android:textSize="11sp"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="6dp"
+                            android:textColor="@color/text_primary" />
+
+                        <RadioButton
+                            android:id="@+id/rbSecFolder"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Folder"
+                            android:textSize="11sp"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="6dp"
+                            android:textColor="@color/text_primary" />
+                    </RadioGroup>
+                </HorizontalScrollView>
 
                 <!-- Secondary System Container -->
                 <LinearLayout
@@ -331,6 +454,99 @@
                         android:id="@+id/rvSecAppsList"
                         android:layout_width="match_parent"
                         android:layout_height="180dp" />
+                </LinearLayout>
+
+                <!-- Secondary Shortcut Picker Container -->
+                <LinearLayout
+                    android:id="@+id/layoutSecShortcutPicker"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Card when secondary shortcut is selected -->
+                    <LinearLayout
+                        android:id="@+id/cardSecSelectedShortcut"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="12dp"
+                        android:background="@drawable/bg_card"
+                        android:visibility="gone"
+                        android:layout_marginBottom="8dp">
+
+                        <ImageView
+                            android:id="@+id/ivSecSelectedShortcutIcon"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_action_shortcut" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvSecSelectedShortcutName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Selected Shortcut"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Configured successfully"
+                                android:textColor="@color/accent_green"
+                                android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <Button
+                                android:id="@+id/btnSecChangeShortcut"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Change"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutSecShortcutProviderList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Select an app to choose an in-app action/document:"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="6dp" />
+
+                        <EditText
+                            android:id="@+id/etSecSearchShortcut"
+                            android:layout_width="match_parent"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_card"
+                            android:hint="Search shortcut apps..."
+                            android:textColorHint="@color/text_secondary"
+                            android:textColor="@color/text_primary"
+                            android:paddingHorizontal="10dp"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvSecShortcutsList"
+                            android:layout_width="match_parent"
+                            android:layout_height="180dp"
+                            android:scrollbars="vertical" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <!-- Secondary Web URL Container -->

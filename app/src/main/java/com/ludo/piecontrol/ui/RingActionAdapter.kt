@@ -2,10 +2,13 @@ package com.ludo.piecontrol.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.ludo.piecontrol.databinding.ItemRingActionBinding
 import com.ludo.piecontrol.model.ActionType
@@ -35,19 +38,29 @@ class RingActionAdapter(
 
         binding.tvActionLabel.text = action.label
 
+        fun getActionDrawable(act: PieAction): Drawable? {
+            if (act.type == ActionType.APP && act.data.isNotEmpty()) {
+                try {
+                    return context.packageManager.getApplicationIcon(act.data)
+                } catch (e: Exception) {}
+            }
+            if (act.type == ActionType.SHORTCUT && act.data.isNotEmpty()) {
+                try {
+                    val parsed = Intent.parseUri(act.data, Intent.URI_INTENT_SCHEME)
+                    val pkg = parsed.`package` ?: parsed.component?.packageName
+                        ?: context.packageManager.resolveActivity(parsed, 0)?.activityInfo?.packageName
+                    if (pkg != null) {
+                        return context.packageManager.getApplicationIcon(pkg)
+                    }
+                } catch (e: Exception) {}
+            }
+            return ContextCompat.getDrawable(context, act.type.iconRes)
+        }
+
         val sec = action.secondaryAction
         if (sec != null) {
             binding.ivSecondaryIcon.visibility = View.VISIBLE
-            if (sec.type == ActionType.APP && sec.data.isNotEmpty()) {
-                try {
-                    val appIcon = context.packageManager.getApplicationIcon(sec.data)
-                    binding.ivSecondaryIcon.setImageDrawable(appIcon)
-                } catch (e: Exception) {
-                    binding.ivSecondaryIcon.setImageResource(sec.type.iconRes)
-                }
-            } else {
-                binding.ivSecondaryIcon.setImageResource(sec.type.iconRes)
-            }
+            binding.ivSecondaryIcon.setImageDrawable(getActionDrawable(sec))
             binding.tvActionSub.text = "1st: ${action.label} • 2nd: ${sec.label}"
         } else {
             binding.ivSecondaryIcon.visibility = View.GONE
@@ -55,21 +68,12 @@ class RingActionAdapter(
                 ActionType.APP -> "App: ${action.data}"
                 ActionType.URL -> "Website: ${action.data}"
                 ActionType.FOLDER -> "📁 Folder: ${action.label}"
-                ActionType.SHORTCUT -> "Shortcut"
+                ActionType.SHORTCUT -> "Shortcut: ${action.label}"
                 else -> "Core System Action"
             }
         }
 
-        if (action.type == ActionType.APP && action.data.isNotEmpty()) {
-            try {
-                val appIcon = context.packageManager.getApplicationIcon(action.data)
-                binding.ivActionIcon.setImageDrawable(appIcon)
-            } catch (e: Exception) {
-                binding.ivActionIcon.setImageResource(action.type.iconRes)
-            }
-        } else {
-            binding.ivActionIcon.setImageResource(action.type.iconRes)
-        }
+        binding.ivActionIcon.setImageDrawable(getActionDrawable(action))
 
         // Tap on action card to reassign / edit
         binding.root.setOnClickListener {

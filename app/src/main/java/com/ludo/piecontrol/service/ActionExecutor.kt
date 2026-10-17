@@ -158,6 +158,7 @@ object ActionExecutor {
         try {
             val intent = Intent.parseUri(intentUri, Intent.URI_INTENT_SCHEME).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(intent)
         } catch (e: Exception) {
