@@ -268,10 +268,9 @@ class PieMenuView @JvmOverloads constructor(
         val hasL2 = config.layer2.isNotEmpty()
         val hasL3 = config.layer3.isNotEmpty()
 
-        val density = context.resources.displayMetrics.density
-        // Immediate sector entry: compact cancel deadzone near swipe origin (only 20dp or ~35% of r0).
-        // Any intentional inward movement beyond this threshold selects the nearest sector immediately!
-        val cancelDeadzone = min(r0 * 0.35f, 22f * density)
+        // Blackout / cancel deadzone: covers 85% of inner radius r0.
+        // Inside this zone close to the finger, nothing is selected and lifting cancels/dismisses cleanly.
+        val cancelDeadzone = r0 * 0.85f
 
         if (dist >= cancelDeadzone) {
             newLayer = when {
