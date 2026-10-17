@@ -8,6 +8,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.AttributeSet
+import android.util.LruCache
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
@@ -32,8 +33,11 @@ class PieMenuView @JvmOverloads constructor(
     var listener: OnActionSelectedListener? = null
     var config: PieConfig = PieConfig.createDefault()
         set(value) {
+            if (field.layer1 != value.layer1 || field.layer2 != value.layer2 ||
+                field.layer3 != value.layer3 || field.folders != value.folders) {
+                iconCache.evictAll()
+            }
             field = value
-            iconCache.clear()
             updatePaints()
             invalidate()
         }
@@ -97,6 +101,9 @@ class PieMenuView @JvmOverloads constructor(
     private val borderPath = Path()
     private val innerRect = RectF()
     private val outerRect = RectF()
+    private val screenLocation = IntArray(2)
+    private var defaultIconColor = Color.WHITE
+    private var highlightColor = Color.rgb(0, 230, 118)
 
     // Hover state & Secondary action tracking
     private var hoveredLayer: Int = -1 // 1, 2, 3 or -1
@@ -104,7 +111,9 @@ class PieMenuView @JvmOverloads constructor(
     private var isSecondaryArmed: Boolean = false
 
     // Icon Cache
-    private val iconCache = mutableMapOf<String, Bitmap>()
+    private val iconCache = object : LruCache<String, Bitmap>(4 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
+    }
 
     // Watchdogs & Long-Press Timer
     private val safetyDismissRunnable = Runnable {
@@ -156,8 +165,9 @@ class PieMenuView @JvmOverloads constructor(
             Color.blue(baseHighlight)
         )
 
-        val iconColor = parseColorSafe(config.iconColorHex, Color.WHITE)
-        labelPaint.color = iconColor
+        defaultIconColor = parseColorSafe(config.iconColorHex, Color.WHITE)
+        highlightColor = baseHighlight
+        labelPaint.color = defaultIconColor
         labelPaint.textSize = 10f * density * scale
     }
 
@@ -172,10 +182,9 @@ class PieMenuView @JvmOverloads constructor(
     fun showAt(x: Float, y: Float, edge: Edge) {
         this.rawAnchorX = x
         this.rawAnchorY = y
-        val loc = IntArray(2)
-        getLocationOnScreen(loc)
-        this.anchorX = x - loc[0].toFloat()
-        this.anchorY = y - loc[1].toFloat()
+        getLocationOnScreen(screenLocation)
+        this.anchorX = x - screenLocation[0].toFloat()
+        this.anchorY = y - screenLocation[1].toFloat()
         this.currentEdge = edge
         this.hoveredLayer = -1
         this.hoveredIndex = -1
@@ -191,10 +200,15 @@ class PieMenuView @JvmOverloads constructor(
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
-        val loc = IntArray(2)
-        getLocationOnScreen(loc)
-        this.anchorX = rawAnchorX - loc[0].toFloat()
-        this.anchorY = rawAnchorY - loc[1].toFloat()
+        getLocationOnScreen(screenLocation)
+        this.anchorX = rawAnchorX - screenLocation[0].toFloat()
+        this.anchorY = rawAnchorY - screenLocation[1].toFloat()
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(safetyDismissRunnable)
+        removeCallbacks(secondaryArmRunnable)
+        super.onDetachedFromWindow()
     }
 
     fun hide() {
@@ -215,10 +229,9 @@ class PieMenuView @JvmOverloads constructor(
         removeCallbacks(safetyDismissRunnable)
         postDelayed(safetyDismissRunnable, 3000)
 
-        val loc = IntArray(2)
-        getLocationOnScreen(loc)
-        val localX = event.rawX - loc[0].toFloat()
-        val localY = event.rawY - loc[1].toFloat()
+        getLocationOnScreen(screenLocation)
+        val localX = event.rawX - screenLocation[0].toFloat()
+        val localY = event.rawY - screenLocation[1].toFloat()
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -476,8 +489,6 @@ class PieMenuView @JvmOverloads constructor(
         val thickness = outerR - innerR
 
         val secondary = action.secondaryAction
-        val defaultIconColor = parseColorSafe(config.iconColorHex, Color.WHITE)
-        val highlightColor = parseColorSafe(config.highlightColorHex, Color.parseColor("#00E676"))
         val iconScale = (config.iconScalePercent.coerceIn(50, 200) / 100f)
 
         if (secondary == null) {
@@ -549,7 +560,7 @@ class PieMenuView @JvmOverloads constructor(
     private fun getActionBitmap(action: PieAction, sizePx: Int, tintColor: Int, alpha: Int = 255): Bitmap? {
         val safeSize = sizePx.coerceAtLeast(24)
         val cacheKey = "${action.type.name}_${action.data}_${safeSize}_${tintColor}_$alpha"
-        iconCache[cacheKey]?.let { return it }
+        iconCache.get(cacheKey)?.let { return it }
 
         val bitmap = Bitmap.createBitmap(safeSize, safeSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -560,7 +571,7 @@ class PieMenuView @JvmOverloads constructor(
                 appIcon.setBounds(0, 0, safeSize, safeSize)
                 appIcon.alpha = alpha
                 appIcon.draw(canvas)
-                iconCache[cacheKey] = bitmap
+                iconCache.put(cacheKey, bitmap)
                 return bitmap
             } catch (e: Exception) {
                 // Fall back to default icon
@@ -577,7 +588,7 @@ class PieMenuView @JvmOverloads constructor(
                     appIcon.setBounds(0, 0, safeSize, safeSize)
                     appIcon.alpha = alpha
                     appIcon.draw(canvas)
-                    iconCache[cacheKey] = bitmap
+                    iconCache.put(cacheKey, bitmap)
                     return bitmap
                 }
             } catch (e: Exception) {
@@ -608,7 +619,7 @@ class PieMenuView @JvmOverloads constructor(
             drawable.setTint(tinted)
             drawable.setBounds(0, 0, safeSize, safeSize)
             drawable.draw(canvas)
-            iconCache[cacheKey] = bitmap
+            iconCache.put(cacheKey, bitmap)
             return bitmap
         }
 

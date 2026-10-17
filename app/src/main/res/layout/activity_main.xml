@@ -14,13 +14,27 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="PieControl"
+            app:title="@string/app_name"
             app:titleTextColor="@color/text_primary" />
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/settingsTabs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/surface"
+            app:tabMode="scrollable"
+            app:tabGravity="start"
+            app:tabIndicatorFullWidth="false"
+            app:tabSelectedTextColor="@color/primary"
+            app:tabTextColor="@color/text_secondary" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/settingsScroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:saveEnabled="false"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         android:padding="16dp"
         android:clipToPadding="false">
@@ -30,8 +44,29 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <TextView
+                android:id="@+id/settingsTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:accessibilityHeading="true"
+                android:text="@string/tab_general"
+                android:textColor="@color/text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/settingsSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="20dp"
+                android:text="@string/tab_general_summary"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
             <!-- Master Switch Card -->
             <LinearLayout
+                android:id="@+id/cardMaster"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -65,12 +100,14 @@
 
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switchMaster"
+                    android:contentDescription="@string/master_switch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
             </LinearLayout>
 
             <!-- Permissions Card -->
             <LinearLayout
+                android:id="@+id/cardPermissions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -166,6 +203,7 @@
 
             <!-- Trigger Zone Settings Card -->
             <LinearLayout
+                android:id="@+id/cardTriggers"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -200,6 +238,7 @@
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchLeftEdge"
+                        android:contentDescription="@string/edge_left"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -222,6 +261,7 @@
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchRightEdge"
+                        android:contentDescription="@string/edge_right"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -244,6 +284,7 @@
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchBottomEdge"
+                        android:contentDescription="@string/edge_bottom"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -318,6 +359,7 @@
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchShowIndicator"
+                        android:contentDescription="@string/trigger_visible"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -326,6 +368,8 @@
 
             <!-- Appearance Settings Card -->
             <LinearLayout
+                android:id="@+id/cardAppearance"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -465,6 +509,7 @@
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchHaptic"
+                        android:contentDescription="@string/haptic_feedback"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -491,7 +536,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
+                        android:layout_marginEnd="8dp"
                         android:text="Green"
                         android:textColor="#00E676" />
 
@@ -501,9 +546,15 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
                         android:text="Blue"
                         android:textColor="#2979FF" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
 
                     <Button
                         android:id="@+id/btnColorGold"
@@ -511,7 +562,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
+                        android:layout_marginEnd="8dp"
                         android:text="Gold"
                         android:textColor="#FFD700" />
 
@@ -529,6 +580,8 @@
 
             <!-- Layer 1 Actions Card -->
             <LinearLayout
+                android:id="@+id/cardLayer1"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -580,6 +633,8 @@
 
             <!-- Layer 2 Actions Card -->
             <LinearLayout
+                android:id="@+id/cardLayer2"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -631,6 +686,8 @@
 
             <!-- Layer 3 Actions Card -->
             <LinearLayout
+                android:id="@+id/cardLayer3"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -682,6 +739,8 @@
 
             <!-- Action Folders Card -->
             <LinearLayout
+                android:id="@+id/cardFolders"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -741,6 +800,8 @@
 
             <!-- Backup & Restore Card -->
             <LinearLayout
+                android:id="@+id/cardBackup"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -792,6 +853,8 @@
 
             <!-- 5. App Updates & About -->
             <LinearLayout
+                android:id="@+id/cardAbout"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"

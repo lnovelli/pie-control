@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PieControl</string>
+    <string name="tab_general">General</string>
+    <string name="tab_appearance">Appearance</string>
+    <string name="tab_actions">Ring Actions</string>
+    <string name="tab_folders">Folders</string>
+    <string name="tab_more">More</string>
+    <string name="tab_general_summary">Enable gestures, grant permissions, and choose your screen edges.</string>
+    <string name="tab_appearance_summary">Fine-tune the size, colors, and feel of your pie menu.</string>
+    <string name="tab_actions_summary">Tap an action to edit it. Drag the handle to reorder actions within a ring.</string>
+    <string name="tab_folders_summary">Organize related actions into folders, then assign them to a ring.</string>
+    <string name="tab_more_summary">Keep your configuration safe and check for app updates.</string>
+    <string name="master_switch">Enable PieControl</string>
+    <string name="haptic_feedback">Haptic vibration on hover</string>
+    <string name="loading_apps">Loading apps…</string>
     <string name="accessibility_service_label">PieControl Accessibility</string>
     <string name="accessibility_service_description">Enables PieControl to execute core Android system actions such as Back, Home, Recents, Notifications, Quick Settings, Power Menu, and Lock Screen.</string>
 

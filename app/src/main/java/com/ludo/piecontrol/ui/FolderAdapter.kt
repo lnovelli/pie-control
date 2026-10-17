@@ -11,7 +11,7 @@ import com.ludo.piecontrol.R
 import com.ludo.piecontrol.model.PieFolder
 
 class FolderAdapter(
-    private val folders: MutableList<PieFolder>,
+    var folders: MutableList<PieFolder>,
     private val onEditClick: (PieFolder, Int) -> Unit,
     private val onDeleteClick: (PieFolder, Int) -> Unit
 ) : RecyclerView.Adapter<FolderAdapter.ViewHolder>() {

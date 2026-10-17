@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.tabs.TabLayout
 import com.ludo.piecontrol.R
 import com.ludo.piecontrol.data.PreferencesManager
 import com.ludo.piecontrol.databinding.ActivityMainBinding
@@ -44,6 +45,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefsManager: PreferencesManager
     private lateinit var config: PieConfig
+    private var isBindingConfig = false
+    private var selectedSettingsTab = 0
+    private var tabScrollPositions = IntArray(5)
+    private var configSavePending = false
+    private val persistConfigRunnable = Runnable { saveConfig() }
 
     // SAF Import Launcher
     private val importFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -121,6 +127,7 @@ class MainActivity : AppCompatActivity() {
         prefsManager = PreferencesManager.getInstance(this)
         config = prefsManager.loadConfig()
 
+        setupSettingsTabs(savedInstanceState)
         setupPermissionsUi()
         bindConfigToUi()
         setupListeners()
@@ -148,13 +155,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        if (configSavePending) saveConfig()
         super.onPause()
         setServicePreviewMode(false)
     }
 
     override fun onDestroy() {
+        binding.root.removeCallbacks(persistConfigRunnable)
+        onShortcutResultCallback = null
         setServicePreviewMode(false)
         super.onDestroy()
+    }
+
+    private fun setupSettingsTabs(savedInstanceState: Bundle?) {
+        val titles = listOf(R.string.tab_general, R.string.tab_appearance, R.string.tab_actions,
+            R.string.tab_folders, R.string.tab_more)
+        val summaries = listOf(R.string.tab_general_summary, R.string.tab_appearance_summary,
+            R.string.tab_actions_summary, R.string.tab_folders_summary, R.string.tab_more_summary)
+        val sections = listOf(
+            listOf(binding.cardMaster, binding.cardPermissions, binding.cardTriggers),
+            listOf(binding.cardAppearance),
+            listOf(binding.cardLayer1, binding.cardLayer2, binding.cardLayer3),
+            listOf(binding.cardFolders),
+            listOf(binding.cardBackup, binding.cardAbout)
+        )
+        tabScrollPositions = savedInstanceState?.getIntArray("tab_scroll_positions")
+            ?.takeIf { it.size == titles.size } ?: IntArray(titles.size)
+        selectedSettingsTab = (savedInstanceState?.getInt("settings_tab") ?: 0).coerceIn(titles.indices)
+
+        fun showTab(position: Int) {
+            sections.forEachIndexed { index, cards ->
+                cards.forEach { it.visibility = if (index == position) View.VISIBLE else View.GONE }
+            }
+            binding.settingsTitle.setText(titles[position])
+            binding.settingsSummary.setText(summaries[position])
+            binding.settingsScroll.post {
+                if (selectedSettingsTab == position) {
+                    binding.settingsScroll.scrollTo(0, tabScrollPositions[position])
+                }
+            }
+        }
+
+        titles.forEach { binding.settingsTabs.addTab(binding.settingsTabs.newTab().setText(it), false) }
+        binding.settingsTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                tabScrollPositions[selectedSettingsTab] = binding.settingsScroll.scrollY
+                selectedSettingsTab = tab.position
+                showTab(tab.position)
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+        val restoredScroll = tabScrollPositions[selectedSettingsTab]
+        binding.settingsTabs.getTabAt(selectedSettingsTab)?.select()
+        tabScrollPositions[selectedSettingsTab] = restoredScroll
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        tabScrollPositions[selectedSettingsTab] = binding.settingsScroll.scrollY
+        outState.putInt("settings_tab", selectedSettingsTab)
+        outState.putIntArray("tab_scroll_positions", tabScrollPositions)
+        super.onSaveInstanceState(outState)
     }
 
     private fun setupPermissionsUi() {
@@ -206,6 +267,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun bindConfigToUi() {
+        isBindingConfig = true
         // Master switch
         binding.switchMaster.isChecked = config.enabled
         binding.tvMasterStatus.text = if (config.enabled) getString(R.string.status_enabled) else getString(R.string.status_disabled)
@@ -257,10 +319,13 @@ class MainActivity : AppCompatActivity() {
 
         // Rings
         renderRingActions()
+        isBindingConfig = false
+        ensureServiceState()
     }
 
     private fun setupListeners() {
         binding.switchMaster.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
             config.enabled = isChecked
             saveConfig()
             binding.tvMasterStatus.text = if (isChecked) getString(R.string.status_enabled) else getString(R.string.status_disabled)
@@ -268,80 +333,94 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.switchLeftEdge.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
             config.leftEdgeEnabled = isChecked
             saveConfig()
         }
 
         binding.switchRightEdge.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
             config.rightEdgeEnabled = isChecked
             saveConfig()
         }
 
         binding.switchBottomEdge.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
             config.bottomEdgeEnabled = isChecked
             saveConfig()
         }
 
-        binding.sliderTriggerHeight.addOnChangeListener { _, value, _ ->
+        binding.sliderTriggerHeight.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.triggerHeightDp = value.toInt()
             binding.tvTriggerHeightLabel.text = "Trigger Height: ${config.triggerHeightDp} dp"
-            saveConfig()
+            scheduleConfigSave()
         }
 
-        binding.sliderTriggerWidth.addOnChangeListener { _, value, _ ->
+        binding.sliderTriggerWidth.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.triggerWidthDp = value.toInt()
             binding.tvTriggerWidthLabel.text = "Trigger Thickness: ${config.triggerWidthDp} dp"
-            saveConfig()
+            scheduleConfigSave()
         }
 
-        binding.sliderTriggerPos.addOnChangeListener { _, value, _ ->
+        binding.sliderTriggerPos.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.triggerPositionPercent = value.toInt()
             binding.tvTriggerPosLabel.text = "Vertical Position: ${config.triggerPositionPercent}%"
-            saveConfig()
+            scheduleConfigSave()
         }
 
         binding.switchShowIndicator.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
             config.showTriggerIndicator = isChecked
             saveConfig()
         }
 
-        binding.sliderPieScale.addOnChangeListener { _, value, _ ->
+        binding.sliderPieScale.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.pieScalePercent = value.toInt()
             binding.tvPieScaleLabel.text = "Semicircle Scale: ${config.pieScalePercent}%"
-            saveConfig()
+            scheduleConfigSave()
         }
 
-        binding.sliderIconScale.addOnChangeListener { _, value, _ ->
+        binding.sliderIconScale.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.iconScalePercent = value.toInt()
             binding.tvIconScaleLabel.text = "Icon Scale: ${config.iconScalePercent}%"
-            saveConfig()
+            scheduleConfigSave()
         }
 
-        binding.sliderPieAlpha.addOnChangeListener { _, value, _ ->
+        binding.sliderPieAlpha.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.pieAlphaPercent = value.toInt()
             binding.tvPieAlphaLabel.text = "Opacity: ${config.pieAlphaPercent}%"
-            saveConfig()
+            scheduleConfigSave()
         }
 
-        binding.sliderInnerRadius.addOnChangeListener { _, value, _ ->
+        binding.sliderInnerRadius.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.innerRadiusDp = value.toInt()
             binding.tvInnerRadiusLabel.text = "Distance from Finger: ${config.innerRadiusDp} dp"
-            saveConfig()
+            scheduleConfigSave()
         }
 
-        binding.sliderShortHoverDelay.addOnChangeListener { _, value, _ ->
+        binding.sliderShortHoverDelay.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.shortHoverDelayMs = value.toInt()
             binding.tvShortHoverLabel.text = if (config.shortHoverDelayMs == 0) "Short Hover Activation: Instant (0 ms)" else "Short Hover Activation: ${config.shortHoverDelayMs} ms"
-            saveConfig()
+            scheduleConfigSave()
         }
 
-        binding.sliderSecondaryHoldDelay.addOnChangeListener { _, value, _ ->
+        binding.sliderSecondaryHoldDelay.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
             config.secondaryHoldDelayMs = value.toInt()
             binding.tvSecondaryHoldLabel.text = "Secondary Action Hold Trigger: ${config.secondaryHoldDelayMs} ms"
-            saveConfig()
+            scheduleConfigSave()
         }
 
         binding.switchHaptic.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
             config.hapticFeedback = isChecked
             saveConfig()
         }
@@ -441,6 +520,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startUpdateDownload(downloadUrl: String, version: String) {
+        binding.settingsTabs.getTabAt(4)?.select()
         binding.tvUpdateStatus.text = "Starting download..."
         binding.tvUpdateStatus.visibility = View.VISIBLE
         binding.progressBarUpdate.isIndeterminate = false
@@ -486,6 +566,12 @@ class MainActivity : AppCompatActivity() {
             binding.tvEmptyFolders.visibility = View.GONE
             binding.rvFolders.visibility = View.VISIBLE
         }
+        val existingAdapter = binding.rvFolders.adapter as? FolderAdapter
+        if (existingAdapter != null) {
+            existingAdapter.folders = folders
+            existingAdapter.notifyDataSetChanged()
+            return
+        }
         binding.rvFolders.layoutManager = LinearLayoutManager(this)
         binding.rvFolders.adapter = FolderAdapter(
             folders = folders,
@@ -495,9 +581,8 @@ class MainActivity : AppCompatActivity() {
                     .setTitle("Delete Folder")
                     .setMessage("Are you sure you want to delete folder \"${folder.name}\"?")
                     .setPositiveButton("Delete") { _, _ ->
-                        folders.removeAt(pos)
+                        config.folders.removeAll { it.id == folder.id }
                         saveConfig()
-                        renderFolders()
                         renderRingActions()
                     }
                     .setNegativeButton("Cancel", null)
@@ -1288,7 +1373,6 @@ class MainActivity : AppCompatActivity() {
             }
 
             saveConfig()
-            renderFolders()
             renderRingActions()
             dialog.dismiss()
         }
@@ -1400,7 +1484,15 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun scheduleConfigSave() {
+        configSavePending = true
+        binding.root.removeCallbacks(persistConfigRunnable)
+        binding.root.postDelayed(persistConfigRunnable, 150)
+    }
+
     private fun saveConfig() {
+        binding.root.removeCallbacks(persistConfigRunnable)
+        configSavePending = false
         prefsManager.saveConfig(config)
         notifyServiceConfigChanged()
     }
@@ -1425,7 +1517,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun ensureServiceState() {
-        if (config.enabled && Settings.canDrawOverlays(this)) {
+        if (config.enabled && !PieOverlayService.isRunning && Settings.canDrawOverlays(this)) {
             val serviceIntent = Intent(this, PieOverlayService::class.java)
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

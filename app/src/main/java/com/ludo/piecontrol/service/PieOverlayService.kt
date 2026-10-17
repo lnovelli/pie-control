@@ -59,6 +59,8 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                mainHandler.removeCallbacksAndMessages(null)
+                dismissFolderPopup()
                 detachPieMenu()
             }
         }
@@ -97,9 +99,27 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_RELOAD_CONFIG -> {
+                val previousConfig = config
                 config = prefsManager.loadConfig()
                 pieMenuView?.config = config
-                refreshTriggers()
+                if (!config.enabled) {
+                    mainHandler.removeCallbacksAndMessages(null)
+                    dismissFolderPopup()
+                    detachPieMenu()
+                }
+                if (previousConfig.enabled != config.enabled ||
+                    previousConfig.leftEdgeEnabled != config.leftEdgeEnabled ||
+                    previousConfig.rightEdgeEnabled != config.rightEdgeEnabled ||
+                    previousConfig.bottomEdgeEnabled != config.bottomEdgeEnabled ||
+                    previousConfig.triggerHeightDp != config.triggerHeightDp ||
+                    previousConfig.triggerWidthDp != config.triggerWidthDp ||
+                    previousConfig.triggerPositionPercent != config.triggerPositionPercent) {
+                    refreshTriggers()
+                } else {
+                    leftTriggerView?.config = config
+                    rightTriggerView?.config = config
+                    bottomTriggerView?.config = config
+                }
             }
             ACTION_SET_PREVIEW_MODE -> {
                 val preview = intent.getBooleanExtra(EXTRA_PREVIEW_MODE, false)
@@ -423,11 +443,14 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     override fun onDestroy() {
         isRunning = false
+        mainHandler.removeCallbacksAndMessages(null)
         try {
             unregisterReceiver(screenStateReceiver)
         } catch (e: Exception) {}
         dismissFolderPopup()
         detachPieMenu()
+        pieMenuView?.listener = null
+        pieMenuView = null
         removeTriggers()
         super.onDestroy()
     }
