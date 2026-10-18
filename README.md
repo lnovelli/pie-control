@@ -2,6 +2,20 @@
 
 A modern, fluid Android navigation gesture app. Swipe inward from any screen edge to reveal a customizable semicircle ring of actions organized across up to three concentric layers.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="screenshots/Screenshot_20261018_180809_DuckDuckGo.jpg" width="180" alt="PieControl menu over DuckDuckGo"><br><sub>Pie menu over another app</sub></td>
+    <td align="center"><img src="screenshots/Screenshot_20261018_180922_PieControl.jpg" width="180" alt="PieControl general settings"><br><sub>General settings and edge triggers</sub></td>
+    <td align="center"><img src="screenshots/Screenshot_20261018_180957_PieControl.jpg" width="180" alt="PieControl appearance settings"><br><sub>Appearance customization</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/Screenshot_20261018_180948_PieControl.jpg" width="180" alt="PieControl ring actions settings"><br><sub>Three rings of configurable actions</sub></td>
+    <td align="center"><img src="screenshots/Screenshot_20261018_181013_PieControl.jpg" width="180" alt="PieControl More settings"><br><sub>Backup, restore, and app updates</sub></td>
+  </tr>
+</table>
+
 ## Features
 
 - **Side Edge Swipe Activation**: Trigger zones positioned on the left, right, or bottom screen edges. Configurable thickness, height, and vertical position. Requires intentional inward swipe movement towards the screen center rather than accidental static taps.
