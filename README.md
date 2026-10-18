@@ -1,6 +1,6 @@
 # PieControl for Android
 
-A modern, fluid Android navigation gesture app replicating the classic PieControl experience. Swipe inward from any screen edge to reveal a customizable semicircle ring of actions organized across up to three concentric layers.
+A modern, fluid Android navigation gesture app. Swipe inward from any screen edge to reveal a customizable semicircle ring of actions organized across up to three concentric layers.
 
 ## Features
 
@@ -29,8 +29,7 @@ A modern, fluid Android navigation gesture app replicating the classic PieContro
 
 ## Download & Installation
 
-Direct APK download:
-- [https://haven.ipv64.net/download/piecontrol.apk](https://haven.ipv64.net/download/piecontrol.apk)
+TO BE DEFINED
 
 ## Settings
 
