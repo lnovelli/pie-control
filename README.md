@@ -29,8 +29,7 @@ A modern, fluid Android navigation gesture app. Swipe inward from any screen edg
 
 ## Download & Installation
 
-Direct APK download:
-- [https://haven.ipv64.net/download/piecontrol.apk](https://haven.ipv64.net/download/piecontrol.apk)
+TO BE DEFINED
 
 ## Permissions Required
 
