@@ -106,9 +106,10 @@ class PieMenuView @JvmOverloads constructor(
     private var highlightColor = Color.rgb(0, 230, 118)
 
     // Hover state & Secondary action tracking
-    private var hoveredLayer: Int = -1 // 1, 2, 3 or -1
+    private var hoveredLayer: Int = -1
     private var hoveredIndex: Int = -1
     private var isSecondaryArmed: Boolean = false
+    private var hasTriggeredAction: Boolean = false
 
     // Icon Cache
     private val iconCache = object : LruCache<String, Bitmap>(4 * 1024 * 1024) {
@@ -121,12 +122,14 @@ class PieMenuView @JvmOverloads constructor(
     }
 
     private val secondaryArmRunnable = Runnable {
-        val action = getHoveredAction()
-        if (action?.secondaryAction != null) {
-            isSecondaryArmed = true
-            performHaptic(long = true)
-            invalidate()
-        }
+        if (hasTriggeredAction || visibility != VISIBLE) return@Runnable
+        val action = getHoveredAction() ?: return@Runnable
+        val secondaryAction = action.secondaryAction ?: return@Runnable
+        hasTriggeredAction = true
+        isSecondaryArmed = true
+        performHaptic(long = true)
+        listener?.onActionSelected(secondaryAction)
+        hide()
     }
 
     init {
@@ -189,6 +192,7 @@ class PieMenuView @JvmOverloads constructor(
         this.hoveredLayer = -1
         this.hoveredIndex = -1
         this.isSecondaryArmed = false
+        this.hasTriggeredAction = false
         removeCallbacks(secondaryArmRunnable)
         removeCallbacks(safetyDismissRunnable)
         postDelayed(safetyDismissRunnable, 4000)
@@ -226,6 +230,13 @@ class PieMenuView @JvmOverloads constructor(
     }
 
     fun handleMotionEvent(event: MotionEvent): Boolean {
+        if (hasTriggeredAction) {
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                hide()
+            }
+            return true
+        }
+
         removeCallbacks(safetyDismissRunnable)
         postDelayed(safetyDismissRunnable, 3000)
 
@@ -245,16 +256,19 @@ class PieMenuView @JvmOverloads constructor(
                 removeCallbacks(safetyDismissRunnable)
                 removeCallbacks(secondaryArmRunnable)
                 try {
-                    updateHover(localX, localY)
-                    val action = getHoveredAction()
-                    if (action != null) {
-                        val actionToTrigger = if (isSecondaryArmed && action.secondaryAction != null) {
-                            action.secondaryAction
-                        } else {
-                            action
+                    if (!hasTriggeredAction) {
+                        updateHover(localX, localY)
+                        val action = getHoveredAction()
+                        if (action != null) {
+                            val actionToTrigger = if (isSecondaryArmed && action.secondaryAction != null) {
+                                action.secondaryAction
+                            } else {
+                                action
+                            }
+                            hasTriggeredAction = true
+                            performHaptic(long = true)
+                            listener?.onActionSelected(actionToTrigger)
                         }
-                        performHaptic(long = true)
-                        listener?.onActionSelected(actionToTrigger)
                     }
                 } finally {
                     hide()
