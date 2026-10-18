@@ -6,13 +6,17 @@ A modern, fluid Android navigation gesture app. Swipe inward from any screen edg
 
 <table>
   <tr>
-    <td align="center"><img src="screenshots/Screenshot_20261018_180809_DuckDuckGo.jpg" width="180" alt="PieControl menu over DuckDuckGo"><br><sub>Pie menu over another app</sub></td>
-    <td align="center"><img src="screenshots/Screenshot_20261018_180922_PieControl.jpg" width="180" alt="PieControl general settings"><br><sub>General settings and edge triggers</sub></td>
-    <td align="center"><img src="screenshots/Screenshot_20261018_180957_PieControl.jpg" width="180" alt="PieControl appearance settings"><br><sub>Appearance customization</sub></td>
+    <td align="center"><img src="screenshots/one-ring.jpg" width="180" alt="Pie menu with one action ring"><br><sub>One action ring</sub></td>
+    <td align="center"><img src="screenshots/two-rings.jpg" width="180" alt="Pie menu with two action rings"><br><sub>Two action rings</sub></td>
+    <td align="center"><img src="screenshots/three-rings.jpg" width="180" alt="Pie menu with three action rings"><br><sub>Three action rings</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="screenshots/Screenshot_20261018_180948_PieControl.jpg" width="180" alt="PieControl ring actions settings"><br><sub>Three rings of configurable actions</sub></td>
-    <td align="center"><img src="screenshots/Screenshot_20261018_181013_PieControl.jpg" width="180" alt="PieControl More settings"><br><sub>Backup, restore, and app updates</sub></td>
+    <td align="center"><img src="screenshots/general-settings.jpg" width="180" alt="PieControl general settings"><br><sub>General settings and edge triggers</sub></td>
+    <td align="center"><img src="screenshots/ring-actions-settings.jpg" width="180" alt="PieControl ring actions settings"><br><sub>Configure actions across three rings</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/appearance-settings.jpg" width="180" alt="PieControl appearance settings"><br><sub>Appearance customization</sub></td>
+    <td align="center"><img src="screenshots/more-settings.jpg" width="180" alt="PieControl More settings"><br><sub>Backup, restore, and app updates</sub></td>
   </tr>
 </table>
 
