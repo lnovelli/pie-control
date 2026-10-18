@@ -11,8 +11,8 @@ android {
         applicationId = "com.ludo.piecontrol"
         minSdk = 26
         targetSdk = 34
-        versionCode = 18
-        versionName = "1.5.10"
+        versionCode = 19
+        versionName = "1.5.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

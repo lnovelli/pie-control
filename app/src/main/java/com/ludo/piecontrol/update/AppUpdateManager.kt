@@ -28,9 +28,10 @@ import java.net.URL
 object AppUpdateManager {
     private const val TAG = "AppUpdateManager"
     private const val UPDATE_NOTIFICATION_ID = 2002
-    private const val PRIMARY_VERSION_URL = "https://haven.ipv64.net/download/piecontrol_version.json"
-    private const val FALLBACK_VERSION_URL = "https://secure.ipv64.net/download/piecontrol_version.json"
-    const val DEFAULT_APK_URL = "https://haven.ipv64.net/download/piecontrol.apk"
+    private const val GITHUB_LATEST_RELEASE_API_URL = "https://api.github.com/repos/lnovelli/pie-control/releases/latest"
+    private const val RELEASE_APK_ASSET_NAME = "piecontrol.apk"
+    private val RELEASE_VERSION_CODE_MARKER = Regex("""(?m)^<!-- piecontrol-version-code:(\d+) -->\s*$""")
+    const val DEFAULT_APK_URL = "https://github.com/lnovelli/pie-control/releases/latest/download/piecontrol.apk"
 
     fun getCurrentVersionCode(context: Context): Long {
         return try {
@@ -61,59 +62,63 @@ object AppUpdateManager {
     }
 
     /**
-     * Query remote server for version info.
+     * Query the latest public GitHub release for version info and its APK asset.
      */
     fun checkForUpdates(
         context: Context,
         onResult: (hasUpdate: Boolean, remoteVersionCode: Long, remoteVersionName: String, downloadUrl: String, notes: String, error: String?) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            var jsonText: String? = null
             var lastError: String? = null
-
-            // Try primary then fallback URL
-            for (urlStr in listOf(PRIMARY_VERSION_URL, FALLBACK_VERSION_URL)) {
-                try {
-                    val url = URL(urlStr)
-                    val connection = url.openConnection() as HttpURLConnection
-                    connection.connectTimeout = 8000
-                    connection.readTimeout = 10000
-                    connection.connect()
-
-                    if (connection.responseCode in 200..299) {
-                        BufferedReader(InputStreamReader(connection.inputStream)).use { reader ->
-                            jsonText = reader.readText()
-                        }
-                        break
-                    } else {
-                        lastError = "Server returned HTTP ${connection.responseCode}"
-                    }
-                } catch (e: Exception) {
-                    lastError = e.message ?: "Connection error"
+            var connection: HttpURLConnection? = null
+            try {
+                connection = (URL(GITHUB_LATEST_RELEASE_API_URL).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 8000
+                    readTimeout = 10000
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/vnd.github+json")
+                    setRequestProperty("User-Agent", "PieControl-Android")
                 }
+                connection.connect()
+                if (connection.responseCode !in 200..299) {
+                    throw IllegalStateException("GitHub Releases returned HTTP ${connection.responseCode}")
+                }
+
+                val jsonText = BufferedReader(InputStreamReader(connection.inputStream)).use { it.readText() }
+                val release = JSONObject(jsonText)
+                val tagName = release.optString("tag_name").trim()
+                val remoteName = tagName.removePrefix("v")
+                require(remoteName.isNotBlank()) { "Latest GitHub release has no version tag" }
+
+                val body = release.optString("body", "")
+                val marker = RELEASE_VERSION_CODE_MARKER.find(body)
+                    ?: throw IllegalStateException("Latest GitHub release is missing version-code metadata")
+                val remoteCode = marker.groupValues[1].toLongOrNull()
+                    ?: throw IllegalStateException("Latest GitHub release has an invalid version code")
+                require(remoteCode > 0L) { "Latest GitHub release has an invalid version code" }
+
+                val assets = release.optJSONArray("assets")
+                val hasApk = assets != null && (0 until assets.length()).any { index ->
+                    assets.optJSONObject(index)?.optString("name") == RELEASE_APK_ASSET_NAME
+                }
+                require(hasApk) { "Latest GitHub release has no $RELEASE_APK_ASSET_NAME asset" }
+
+                val notes = body.replaceRange(marker.range, "").trim()
+                val hasUpdate = remoteCode > getCurrentVersionCode(context)
+                withContext(Dispatchers.Main) {
+                    onResult(hasUpdate, remoteCode, remoteName, DEFAULT_APK_URL, notes, null)
+                }
+            } catch (e: Exception) {
+                lastError = e.message ?: "Connection error"
+            } finally {
+                connection?.disconnect()
             }
 
-            if (jsonText != null) {
-                try {
-                    val json = JSONObject(jsonText!!)
-                    val remoteCode = json.optLong("version_code", 1L)
-                    val remoteName = json.optString("version_name", "1.0.0")
-                    val downloadUrl = json.optString("download_url", DEFAULT_APK_URL)
-                    val notes = json.optString("release_notes", "")
-                    val currentCode = getCurrentVersionCode(context)
-
-                    val hasUpdate = remoteCode > currentCode
-                    withContext(Dispatchers.Main) {
-                        onResult(hasUpdate, remoteCode, remoteName, downloadUrl, notes, null)
-                    }
-                    return@launch
-                } catch (e: Exception) {
-                    lastError = "Failed to parse update manifest: ${e.message}"
+            val errorMessage = lastError
+            if (errorMessage != null) {
+                withContext(Dispatchers.Main) {
+                    onResult(false, 0L, "", "", "", errorMessage)
                 }
-            }
-
-            withContext(Dispatchers.Main) {
-                onResult(false, 0L, "", "", "", lastError ?: "Failed to check for updates")
             }
         }
     }
@@ -157,7 +162,7 @@ object AppUpdateManager {
 
         val notif = NotificationCompat.Builder(context, PieControlApp.UPDATE_CHANNEL_ID)
             .setContentTitle("New PieControl v$remoteVersionName Available")
-            .setContentText("A new build is ready on the server. Tap to download & install.")
+            .setContentText("A new build is ready on GitHub Releases. Tap to download & install.")
             .setStyle(NotificationCompat.BigTextStyle().bigText("Version $remoteVersionName is ready.\nNotes: $notes\nTap to download."))
             .setSmallIcon(R.drawable.ic_action_update)
             .setContentIntent(pendingIntent)

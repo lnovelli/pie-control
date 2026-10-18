@@ -502,7 +502,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun performCheckUpdate() {
         val currentVerName = com.ludo.piecontrol.update.AppUpdateManager.getCurrentVersionName(this)
-        binding.tvUpdateStatus.text = "Checking server for updates..."
+        binding.tvUpdateStatus.text = "Checking GitHub Releases for updates..."
         binding.tvUpdateStatus.visibility = View.VISIBLE
         binding.progressBarUpdate.isIndeterminate = true
         binding.progressBarUpdate.visibility = View.VISIBLE

@@ -43,7 +43,12 @@ A modern, fluid Android navigation gesture app. Swipe inward from any screen edg
 
 ## Download & Installation
 
-TO BE DEFINED
+Download the latest APK and view release notes on GitHub:
+
+- [Download PieControl APK](https://github.com/lnovelli/pie-control/releases/latest/download/piecontrol.apk)
+- [GitHub Releases](https://github.com/lnovelli/pie-control/releases/latest)
+
+The in-app update checker also uses GitHub Releases.
 
 ## Settings
 
