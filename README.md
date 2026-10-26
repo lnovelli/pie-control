@@ -55,6 +55,10 @@ Download the latest APK and view release notes on GitHub:
 
 The in-app update checker also uses GitHub Releases.
 
+## Latest Release: 1.5.13
+
+- Refined the launcher icon with a compact two-ring mark, more room for launcher masks, and slightly bolder rings and center dot.
+
 ## Settings
 
 Settings are organized into scrollable tabs:

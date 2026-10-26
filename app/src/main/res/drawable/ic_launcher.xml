@@ -6,20 +6,51 @@
     <path
         android:fillColor="#141425"
         android:pathData="M27,5 h42 a22,22 0 0 1 22,22 v42 a22,22 0 0 1 -22,22 h-42 a22,22 0 0 1 -22,-22 v-42 a22,22 0 0 1 22,-22 z" />
-    <!-- Pie Control semicircle rings -->
-    <path
-        android:fillColor="#3A86B8"
-        android:pathData="M16,48 A32,32 0 0,1 48,16 L48,28 A20,20 0 0,0 28,48 Z" />
-    <path
-        android:fillColor="#FFD700"
-        android:pathData="M48,16 A32,32 0 0,1 80,48 L68,48 A20,20 0 0,0 48,28 Z" />
-    <path
-        android:fillColor="#00E676"
-        android:pathData="M28,48 A20,20 0 0,1 48,28 L48,38 A10,10 0 0,0 38,48 Z" />
-    <path
-        android:fillColor="#FF5252"
-        android:pathData="M48,28 A20,20 0 0,1 68,48 L58,48 A10,10 0 0,0 48,38 Z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M48,42 A6,6 0 1,1 48,54 A6,6 0 1,1 48,42 Z" />
+    <group
+        android:pivotX="48"
+        android:pivotY="48"
+        android:scaleX="0.62"
+        android:scaleY="0.62">
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#3A86B8"
+            android:strokeWidth="7.2"
+            android:strokeLineCap="round"
+            android:pathData="M63,12 A36,36 0 0,0 63,84" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#E5B800"
+            android:strokeWidth="7.2"
+            android:strokeLineCap="round"
+            android:pathData="M63,24.75 A23.25,23.25 0 0,0 63,71.25" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#141425"
+            android:strokeWidth="0.75"
+            android:strokeLineCap="butt"
+            android:pathData="M34.75,31.69 L28.90,28.31" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#141425"
+            android:strokeWidth="0.75"
+            android:strokeLineCap="butt"
+            android:pathData="M34.75,64.31 L28.90,67.69" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#141425"
+            android:strokeWidth="0.75"
+            android:strokeLineCap="butt"
+            android:pathData="M45.79,38.06 L39.94,34.69" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#141425"
+            android:strokeWidth="0.75"
+            android:strokeLineCap="butt"
+            android:pathData="M45.79,57.94 L39.94,61.31" />
+        <path
+            android:fillColor="#F7F9FC"
+            android:strokeColor="#141425"
+            android:strokeWidth="2.4"
+            android:pathData="M70,48 A7,7 0 1,1 56,48 A7,7 0 1,1 70,48 Z" />
+    </group>
 </vector>
