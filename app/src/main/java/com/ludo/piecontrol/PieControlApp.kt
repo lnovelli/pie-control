@@ -5,6 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import com.ludo.piecontrol.usage.UsageSuggestionNotifications
+import com.ludo.piecontrol.usage.UsageSuggestionScheduler
 
 class PieControlApp : Application() {
 
@@ -19,6 +21,8 @@ class PieControlApp : Application() {
         super.onCreate()
         instance = this
         createNotificationChannels()
+        UsageSuggestionNotifications.createChannel(this)
+        UsageSuggestionScheduler.sync(this)
     }
 
     private fun createNotificationChannels() {

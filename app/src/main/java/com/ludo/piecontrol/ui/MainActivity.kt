@@ -1,17 +1,21 @@
 package com.ludo.piecontrol.ui
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import java.text.DateFormat
 import android.util.LruCache
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,12 +24,14 @@ import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.doOnLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.work.WorkInfo
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayout
 import com.ludo.piecontrol.R
@@ -38,6 +44,12 @@ import com.ludo.piecontrol.model.PieConfig
 import com.ludo.piecontrol.model.PieFolder
 import com.ludo.piecontrol.service.PieAccessibilityService
 import com.ludo.piecontrol.service.PieOverlayService
+import com.ludo.piecontrol.usage.UsageAccess
+import com.ludo.piecontrol.usage.UsageSuggestion
+import com.ludo.piecontrol.usage.UsageSuggestionNotifications
+import com.ludo.piecontrol.usage.UsageSuggestionPreferences
+import com.ludo.piecontrol.usage.UsageSuggestionScheduler
+import com.ludo.piecontrol.usage.UsageSuggestionSettings
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.CancellationException
@@ -51,10 +63,20 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        const val EXTRA_OPEN_USAGE_SUGGESTIONS = "open_usage_suggestions"
+        private const val USAGE_SUGGESTIONS_TAB_POSITION = 4
+    }
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefsManager: PreferencesManager
+    private lateinit var usagePreferences: UsageSuggestionPreferences
     private lateinit var config: PieConfig
     private var isBindingConfig = false
+    private var isBindingUsageSettings = false
+    private var usageRenderGeneration = 0
+    private var isUsageCheckRunning = false
+    private var usageCheckStartedAt = 0L
     private var selectedSettingsTab = 0
     private var tabScrollPositions = IntArray(5)
     private var configSavePending = false
@@ -63,6 +85,17 @@ class MainActivity : AppCompatActivity() {
     private val pickerIconCache = object : LruCache<String, Bitmap>(2 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
     }
+
+    private val usageNotificationsPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            val settings = usagePreferences.settings()
+            usagePreferences.saveSettings(settings.copy(notificationsEnabled = granted))
+            if (granted && settings.enabled) UsageSuggestionScheduler.requestCheck(this)
+            if (!granted) {
+                Toast.makeText(this, R.string.usage_notification_permission_denied, Toast.LENGTH_SHORT).show()
+            }
+            refreshUsageSuggestionsUi()
+        }
 
     // SAF Import Launcher
     private val importFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -140,12 +173,15 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         prefsManager = PreferencesManager.getInstance(this)
+        usagePreferences = UsageSuggestionPreferences(this)
         config = prefsManager.loadConfig()
 
         setupSettingsTabs(savedInstanceState)
         setupPermissionsUi()
         bindConfigToUi()
         setupListeners()
+        setupUsageSuggestionsUi()
+        observeUsageChecks()
         handleIntent(intent)
     }
 
@@ -155,6 +191,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_USAGE_SUGGESTIONS, false) == true) {
+            binding.settingsTabs.getTabAt(USAGE_SUGGESTIONS_TAB_POSITION)?.select()
+        }
         if (intent?.getBooleanExtra("trigger_update_download", false) == true) {
             val url = intent.getStringExtra("update_download_url") ?: com.ludo.piecontrol.update.AppUpdateManager.DEFAULT_APK_URL
             val ver = intent.getStringExtra("update_version_name") ?: "New Version"
@@ -167,6 +206,18 @@ class MainActivity : AppCompatActivity() {
         updatePermissionsStatus()
         ensureServiceState()
         setServicePreviewMode(true)
+        val usageSettings = usagePreferences.settings()
+        if (!usageSettings.enabled) {
+            UsageSuggestionScheduler.cancel(this)
+        } else if (!UsageAccess.isGranted(this)) {
+            UsageSuggestionScheduler.cancel(this)
+            usagePreferences.clearAnalysis()
+            UsageSuggestionNotifications.cancel(this)
+        } else {
+            UsageSuggestionScheduler.sync(this)
+            if (usagePreferences.lastCheckedAt() == 0L) UsageSuggestionScheduler.requestCheck(this)
+        }
+        refreshUsageSuggestionsUi()
     }
 
     override fun onPause() {
@@ -185,15 +236,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSettingsTabs(savedInstanceState: Bundle?) {
-        val titles = listOf(R.string.tab_general, R.string.tab_appearance, R.string.tab_actions,
-            R.string.tab_folders, R.string.tab_more)
-        val summaries = listOf(R.string.tab_general_summary, R.string.tab_appearance_summary,
-            R.string.tab_actions_summary, R.string.tab_folders_summary, R.string.tab_more_summary)
+        val titles = listOf(
+            R.string.tab_general, R.string.tab_appearance, R.string.tab_actions,
+            R.string.tab_folders, R.string.tab_usage_suggestions, R.string.tab_more
+        )
+        val summaries = listOf(
+            R.string.tab_general_summary, R.string.tab_appearance_summary,
+            R.string.tab_actions_summary, R.string.tab_folders_summary,
+            R.string.tab_usage_suggestions_summary, R.string.tab_more_summary
+        )
         val sections = listOf(
             listOf(binding.cardMaster, binding.cardPermissions, binding.cardTriggers),
             listOf(binding.cardAppearance),
             listOf(binding.cardLayer1, binding.cardLayer2, binding.cardLayer3),
             listOf(binding.cardFolders),
+            listOf(binding.cardUsageSuggestions),
             listOf(binding.cardBackup, binding.cardAbout)
         )
         tabScrollPositions = savedInstanceState?.getIntArray("tab_scroll_positions")
@@ -226,6 +283,357 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
     }
+
+    private fun setupUsageSuggestionsUi() {
+        val settings = usagePreferences.settings()
+        val frequencyDays = intArrayOf(1, 2, 3, 7)
+        val windowDays = intArrayOf(3, 7, 14, 30)
+        val frequencyAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            resources.getStringArray(R.array.usage_frequency_options)
+        ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        val windowAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            resources.getStringArray(R.array.usage_window_options)
+        ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+        isBindingUsageSettings = true
+        binding.spinnerUsageFrequency.adapter = frequencyAdapter
+        binding.spinnerUsageFrequency.setSelection(frequencyDays.indexOf(settings.checkIntervalDays).coerceAtLeast(0))
+        binding.spinnerUsageWindow.adapter = windowAdapter
+        binding.spinnerUsageWindow.setSelection(windowDays.indexOf(settings.analysisWindowDays).coerceAtLeast(0))
+        binding.switchUsageSuggestions.isChecked = settings.enabled
+        binding.switchUsageNotifications.isChecked = settings.notificationsEnabled
+        binding.sliderUsageMinimumVisits.value = settings.minimumVisits.coerceIn(2, 20).toFloat()
+        configureMinimumDaysSlider(settings.analysisWindowDays, settings.minimumActiveDays)
+        updateUsageHeuristicLabels(settings)
+        isBindingUsageSettings = false
+
+        binding.btnUsageAccess.setOnClickListener {
+            try {
+                startActivity(UsageAccess.settingsIntent())
+            } catch (_: Exception) {
+                Toast.makeText(this, R.string.usage_access_settings_unavailable, Toast.LENGTH_LONG).show()
+            }
+        }
+        binding.btnUsageCheckNow.setOnClickListener {
+            val current = usagePreferences.settings()
+            if (!current.enabled || !UsageAccess.isGranted(this)) return@setOnClickListener
+            usageCheckStartedAt = System.currentTimeMillis()
+            if (UsageSuggestionScheduler.requestCheck(this)) {
+                isUsageCheckRunning = true
+                updateUsageCheckButton()
+            } else {
+                isUsageCheckRunning = false
+                updateUsageCheckButton()
+            }
+        }
+        binding.switchUsageSuggestions.setOnCheckedChangeListener { _, enabled ->
+            if (isBindingUsageSettings) return@setOnCheckedChangeListener
+            val updated = usagePreferences.settings().copy(enabled = enabled)
+            usagePreferences.saveSettings(updated)
+            if (!enabled) {
+                usagePreferences.clearAnalysis()
+                UsageSuggestionNotifications.cancel(this)
+            }
+            UsageSuggestionScheduler.sync(this)
+            if (enabled) UsageSuggestionScheduler.requestCheck(this)
+            refreshUsageSuggestionsUi()
+        }
+        binding.switchUsageNotifications.setOnCheckedChangeListener { _, enabled ->
+            if (isBindingUsageSettings) return@setOnCheckedChangeListener
+            if (!enabled) {
+                usagePreferences.saveSettings(usagePreferences.settings().copy(notificationsEnabled = false))
+                UsageSuggestionNotifications.cancel(this)
+                refreshUsageSuggestionsUi()
+                return@setOnCheckedChangeListener
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                isBindingUsageSettings = true
+                binding.switchUsageNotifications.isChecked = false
+                isBindingUsageSettings = false
+                usageNotificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                val settings = usagePreferences.settings()
+                usagePreferences.saveSettings(settings.copy(notificationsEnabled = true))
+                if (settings.enabled) UsageSuggestionScheduler.requestCheck(this)
+                refreshUsageSuggestionsUi()
+            }
+        }
+        binding.spinnerUsageFrequency.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (isBindingUsageSettings || position !in frequencyDays.indices) return
+                val current = usagePreferences.settings()
+                val selectedInterval = frequencyDays[position]
+                if (current.checkIntervalDays == selectedInterval) return
+                val updated = current.copy(checkIntervalDays = selectedInterval)
+                usagePreferences.saveSettings(updated)
+                UsageSuggestionScheduler.sync(this@MainActivity)
+                refreshUsageSuggestionsUi()
+            }
+        }
+        binding.spinnerUsageWindow.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (isBindingUsageSettings || position !in windowDays.indices) return
+                val current = usagePreferences.settings()
+                val selectedWindow = windowDays[position]
+                if (current.analysisWindowDays == selectedWindow) return
+                val updated = current.copy(
+                    analysisWindowDays = selectedWindow,
+                    minimumActiveDays = current.minimumActiveDays.coerceAtMost(selectedWindow)
+                )
+                usagePreferences.saveSettings(updated)
+                UsageSuggestionScheduler.requestCheck(this@MainActivity)
+                isBindingUsageSettings = true
+                configureMinimumDaysSlider(selectedWindow, updated.minimumActiveDays)
+                updateUsageHeuristicLabels(updated)
+                isBindingUsageSettings = false
+                refreshUsageSuggestionsUi()
+            }
+        }
+        binding.sliderUsageMinimumVisits.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) updateUsageHeuristicLabels(usagePreferences.settings().copy(minimumVisits = value.toInt()))
+        }
+        binding.sliderUsageMinimumVisits.addOnSliderTouchListener(object : com.google.android.material.slider.Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: com.google.android.material.slider.Slider) = Unit
+            override fun onStopTrackingTouch(slider: com.google.android.material.slider.Slider) {
+                usagePreferences.saveSettings(usagePreferences.settings().copy(minimumVisits = slider.value.toInt()))
+                UsageSuggestionScheduler.requestCheck(this@MainActivity)
+                refreshUsageSuggestionsUi()
+            }
+        })
+        binding.sliderUsageMinimumDays.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) updateUsageHeuristicLabels(usagePreferences.settings().copy(minimumActiveDays = value.toInt()))
+        }
+        binding.sliderUsageMinimumDays.addOnSliderTouchListener(object : com.google.android.material.slider.Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: com.google.android.material.slider.Slider) = Unit
+            override fun onStopTrackingTouch(slider: com.google.android.material.slider.Slider) {
+                usagePreferences.saveSettings(usagePreferences.settings().copy(minimumActiveDays = slider.value.toInt()))
+                UsageSuggestionScheduler.requestCheck(this@MainActivity)
+                refreshUsageSuggestionsUi()
+            }
+        })
+        refreshUsageSuggestionsUi()
+    }
+
+    private fun observeUsageChecks() {
+        UsageSuggestionScheduler.observeOnDemandWork(this).observe(this) { workInfos ->
+            val wasRunning = isUsageCheckRunning
+            isUsageCheckRunning = workInfos.any { info ->
+                info.state == WorkInfo.State.ENQUEUED ||
+                    info.state == WorkInfo.State.RUNNING ||
+                    info.state == WorkInfo.State.BLOCKED
+            }
+            if (wasRunning && !isUsageCheckRunning) {
+                val finalState = workInfos.lastOrNull()?.state
+                val failedManualCheck = finalState == WorkInfo.State.FAILED &&
+                    usageCheckStartedAt > 0L && usagePreferences.lastCheckedAt() < usageCheckStartedAt
+                usageCheckStartedAt = 0L
+                refreshUsageSuggestionsUi()
+                if (failedManualCheck) {
+                    Toast.makeText(this, R.string.usage_check_failed, Toast.LENGTH_LONG).show()
+                }
+            } else {
+                updateUsageCheckButton()
+            }
+        }
+    }
+
+    private fun updateUsageCheckButton() {
+        val settings = usagePreferences.settings()
+        val canCheck = settings.enabled && UsageAccess.isGranted(this)
+        binding.btnUsageCheckNow.isEnabled = canCheck && !isUsageCheckRunning
+        binding.btnUsageCheckNow.setText(
+            if (isUsageCheckRunning) R.string.usage_checking_now else R.string.usage_check_now
+        )
+    }
+
+    private fun configureMinimumDaysSlider(windowDays: Int, selectedDays: Int) {
+        val slider = binding.sliderUsageMinimumDays
+        val safeWindow = windowDays.coerceIn(3, 30).toFloat()
+        val safeValue = selectedDays.coerceIn(1, safeWindow.toInt()).toFloat()
+        if (safeWindow < slider.valueTo) {
+            slider.value = safeValue.coerceAtMost(slider.valueTo)
+            slider.valueTo = safeWindow
+        } else {
+            slider.valueTo = safeWindow
+            slider.value = safeValue
+        }
+    }
+
+    private fun updateUsageHeuristicLabels(settings: UsageSuggestionSettings) {
+        binding.tvUsageMinimumVisits.text = getString(
+            R.string.usage_minimum_visits,
+            settings.minimumVisits.coerceIn(2, 20)
+        )
+        binding.tvUsageMinimumDays.text = getString(
+            R.string.usage_minimum_days,
+            settings.minimumActiveDays.coerceIn(1, settings.analysisWindowDays)
+        )
+    }
+
+    private fun refreshUsageSuggestionsUi() {
+        if (!::usagePreferences.isInitialized) return
+        val settings = usagePreferences.settings()
+        val hasUsageAccess = UsageAccess.isGranted(this)
+        isBindingUsageSettings = true
+        binding.switchUsageSuggestions.isChecked = settings.enabled
+        binding.switchUsageNotifications.isChecked = settings.notificationsEnabled
+        binding.btnUsageAccess.setText(if (hasUsageAccess) R.string.usage_manage_access else R.string.usage_grant_access)
+        binding.tvUsageAccessStatus.setText(if (hasUsageAccess) R.string.usage_access_granted else R.string.usage_access_missing)
+        binding.tvUsageFeatureStatus.setText(
+            when {
+                !settings.enabled -> R.string.usage_feature_disabled
+                !hasUsageAccess -> R.string.usage_waiting_for_access
+                usagePreferences.lastCheckedAt() == 0L -> R.string.usage_waiting_for_scan
+                else -> R.string.usage_feature_active
+            }
+        )
+        val mapped = mappedAppPackages(config)
+        val suggestionsToShow = usagePreferences.suggestions().filterNot { it.packageName in mapped }
+        val checkedAt = usagePreferences.lastCheckedAt()
+        binding.tvUsageLastChecked.text = if (checkedAt == 0L) {
+            getString(R.string.usage_not_checked_yet)
+        } else {
+            val date = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(java.util.Date(checkedAt))
+            getString(R.string.usage_last_checked, date, suggestionsToShow.size)
+        }
+        isBindingUsageSettings = false
+        updateUsageCheckButton()
+
+        val generation = ++usageRenderGeneration
+        activityScope.launch {
+            val displayItems = withContext(Dispatchers.IO) {
+                suggestionsToShow.mapNotNull { suggestion ->
+                    try {
+                        val appInfo = packageManager.getApplicationInfo(suggestion.packageName, 0)
+                        val label = packageManager.getApplicationLabel(appInfo).toString()
+                        UsageSuggestionDisplay(suggestion, label)
+                    } catch (_: PackageManager.NameNotFoundException) {
+                        null
+                    }
+                }
+            }
+            if (generation != usageRenderGeneration || isFinishing || isDestroyed) return@launch
+            renderUsageSuggestionRows(displayItems, settings.analysisWindowDays)
+        }
+    }
+
+    private data class UsageSuggestionDisplay(val suggestion: UsageSuggestion, val label: String)
+
+    private fun renderUsageSuggestionRows(items: List<UsageSuggestionDisplay>, windowDays: Int) {
+        binding.usageSuggestionsList.removeAllViews()
+        binding.tvUsageSuggestionsEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        val selectableRowBackground = android.util.TypedValue().also {
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
+        }
+        val selectableButtonBackground = android.util.TypedValue().also {
+            theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
+        }
+        items.forEach { item ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setBackgroundResource(R.drawable.bg_card)
+                if (selectableRowBackground.resourceId != 0) {
+                    foreground = ContextCompat.getDrawable(this@MainActivity, selectableRowBackground.resourceId)
+                }
+                setPadding(dp(12), dp(8), dp(8), dp(8))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { openSuggestedApp(item.suggestion.packageName) }
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    bottomMargin = dp(8)
+                }
+            }
+            val textColumn = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+            val title = TextView(this).apply {
+                text = item.label
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+                textSize = 16f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+            val details = TextView(this).apply {
+                text = getString(R.string.usage_candidate_details, item.suggestion.visits, item.suggestion.activeDays, windowDays)
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+                textSize = 13f
+            }
+            textColumn.addView(title)
+            textColumn.addView(details)
+            row.addView(textColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+            val muted = usagePreferences.isNotificationMuted(item.suggestion.packageName)
+            val muteButton = ImageButton(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) }
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+                if (selectableButtonBackground.resourceId != 0) setBackgroundResource(selectableButtonBackground.resourceId)
+                setImageResource(if (muted) R.drawable.ic_notifications_off else R.drawable.ic_action_notifications)
+                setColorFilter(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+                contentDescription = getString(
+                    if (muted) R.string.usage_unmute_app_notifications else R.string.usage_mute_app_notifications,
+                    item.label
+                )
+                setOnClickListener {
+                    usagePreferences.setNotificationMuted(item.suggestion.packageName, !muted)
+                    refreshUsageSuggestionsUi()
+                }
+            }
+            row.addView(muteButton)
+            binding.usageSuggestionsList.addView(row)
+        }
+    }
+
+    private fun openSuggestedApp(packageName: String) {
+        try {
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            if (launchIntent == null) {
+                Toast.makeText(this, R.string.usage_app_unavailable, Toast.LENGTH_SHORT).show()
+                return
+            }
+            launchIntent.setPackage(packageName)
+            startActivity(launchIntent)
+        } catch (_: android.content.ActivityNotFoundException) {
+            Toast.makeText(this, R.string.usage_app_unavailable, Toast.LENGTH_SHORT).show()
+        } catch (_: SecurityException) {
+            Toast.makeText(this, R.string.usage_app_unavailable, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun mappedAppPackages(currentConfig: PieConfig): Set<String> {
+        val mapped = mutableSetOf<String>()
+        val visitedFolders = mutableSetOf<String>()
+        fun visit(action: PieAction) {
+            when (action.type) {
+                ActionType.APP -> action.data.takeIf { it.isNotBlank() }?.let(mapped::add)
+                ActionType.SHORTCUT -> if (action.data.isNotBlank()) {
+                    try {
+                        val shortcutIntent = Intent.parseUri(action.data, Intent.URI_INTENT_SCHEME)
+                        (shortcutIntent.`package` ?: shortcutIntent.component?.packageName)?.let(mapped::add)
+                    } catch (_: Exception) {
+                        // Ignore invalid shortcut data while determining ring coverage.
+                    }
+                }
+                ActionType.FOLDER -> {
+                    val folder = currentConfig.folders.firstOrNull { it.id == action.data || it.name == action.data }
+                    if (folder != null && visitedFolders.add(folder.id)) folder.actions.forEach(::visit)
+                }
+                else -> Unit
+            }
+            action.secondaryAction?.let(::visit)
+        }
+        (currentConfig.layer1 + currentConfig.layer2 + currentConfig.layer3).forEach(::visit)
+        return mapped
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     override fun onSaveInstanceState(outState: Bundle) {
         tabScrollPositions[selectedSettingsTab] = binding.settingsScroll.scrollY
@@ -726,7 +1134,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
 
-            override fun isLongPressDragEnabled(): Boolean = true
+            override fun isLongPressDragEnabled(): Boolean = false
 
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
                 super.onSelectedChanged(viewHolder, actionState)
@@ -1347,7 +1755,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
 
-            override fun isLongPressDragEnabled(): Boolean = true
+            override fun isLongPressDragEnabled(): Boolean = false
 
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
                 super.onSelectedChanged(viewHolder, actionState)

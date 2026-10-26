@@ -38,6 +38,7 @@ A modern, fluid Android navigation gesture app. Swipe inward from any screen edg
   - Adjustable size and radius scale (60% to 150%).
   - Adjustable alpha transparency and opacity (30% to 100%).
   - Haptic feedback vibration on hovering over sectors.
+- **App Suggestions (opt-in)**: On-device analysis of foreground app visits to suggest frequently opened apps not already assigned to rings. Usage Access is required only when enabled; analysis windows and visit thresholds are configurable. Suggestions can be opened directly, and optional notifications can be muted per app.
 - **Backup, Restore & Google Cloud Sync**:
   - One-tap Export and Import of configuration as JSON.
   - Support for Android Auto Backup (`allowBackup="true"` and `dataExtractionRules`) to automatically preserve settings in your linked Google Account across device reinstalls.
@@ -62,6 +63,7 @@ Settings are organized into scrollable tabs:
 - **Appearance**: Adjust menu/icon sizes, opacity, highlight colors, timing, and haptics.
 - **Ring Actions**: Add, edit, delete, and drag to reorder actions across the three rings.
 - **Folders**: Create and manage groups of actions to assign to a ring.
+- **App Suggestions**: Configure on-device usage analysis, visit/day thresholds, and check frequency; run a check on demand and manage per-app notification mutes.
 - **More**: Export/import settings, reset defaults, and check for updates.
 
 The selected tab and each tab's scroll position survive activity recreation. App and shortcut pickers load their lists off the UI thread and load only visible icons into a bounded cache. Slider changes are coalesced before saving and updating overlays; pending changes are saved when leaving settings.
@@ -70,6 +72,7 @@ The selected tab and each tab's scroll position survive activity recreation. App
 
 1. **Display over other apps (`SYSTEM_ALERT_WINDOW`)**: Required to display edge trigger zones and the radial pie menu over other applications.
 2. **Accessibility Service**: Required to execute system navigation actions (Back, Home, Recents, Notifications, etc.).
+3. **Usage Access (optional)**: Required only if you enable App Suggestions; usage analysis stays on-device.
 
 ## Build from Source
 

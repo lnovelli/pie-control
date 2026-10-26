@@ -91,17 +91,21 @@ class RingActionAdapter(
             onActionDelete(act, pos)
         }
 
-        binding.ivDragHandle.setOnTouchListener { view, event ->
+        // Let RecyclerView observe MOVE events so ItemTouchHelper can intercept and reorder.
+        // Consume the handle stream to prevent the row's edit-click listener from firing.
+        binding.ivDragHandle.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(true)
-                    onStartDragListener?.invoke(holder)
+                    val dragListener = onStartDragListener
+                    if (holder.adapterPosition == RecyclerView.NO_POSITION || dragListener == null) {
+                        false
+                    } else {
+                        dragListener.invoke(holder)
+                        true
+                    }
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
-                }
+                else -> true
             }
-            false
         }
     }
 

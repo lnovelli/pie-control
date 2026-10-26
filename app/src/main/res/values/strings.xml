@@ -11,6 +11,54 @@
     <string name="tab_actions_summary">Tap an action to edit it. Drag the handle to reorder actions within a ring.</string>
     <string name="tab_folders_summary">Organize related actions into folders, then assign them to a ring.</string>
     <string name="tab_more_summary">Keep your configuration safe and check for app updates.</string>
+    <string name="tab_usage_suggestions">App Suggestions</string>
+    <string name="tab_usage_suggestions_summary">Find frequently opened apps that are not assigned to your PieControl rings.</string>
+    <string name="usage_section_title">Frequently Opened Apps</string>
+    <string name="usage_description">PieControl checks app foreground transitions on this device only. It does not read app content or measure time spent in apps. Usage Access is required. Tap a suggestion to open it; tap its bell to mute notifications.</string>
+    <string name="usage_master_toggle">Enable usage suggestions</string>
+    <string name="usage_grant_access">Grant access</string>
+    <string name="usage_manage_access">Manage access</string>
+    <string name="usage_notifications_toggle">Notify me when new suggestions are found</string>
+    <string name="usage_schedule_heading">Check schedule and criteria</string>
+    <string name="usage_check_frequency">Check frequency</string>
+    <string name="usage_analysis_window">Analysis window</string>
+    <string name="usage_minimum_visits">At least %1$d foreground visits</string>
+    <string name="usage_minimum_days">Spread across at least %1$d days</string>
+    <string name="usage_access_granted">Usage Access is granted.</string>
+    <string name="usage_access_missing">Usage Access is not granted.</string>
+    <string name="usage_feature_disabled">Suggestions are off; no usage data is being checked.</string>
+    <string name="usage_waiting_for_access">Grant Usage Access below to start analysis.</string>
+    <string name="usage_waiting_for_scan">Usage Access is ready. The first background check will run soon.</string>
+    <string name="usage_last_checked">Last checked: %1$s · %2$d suggestions</string>
+    <string name="usage_check_now">Check usage statistics now</string>
+    <string name="usage_checking_now">Checking usage statistics…</string>
+    <string name="usage_check_failed">Could not check usage statistics. Try again.</string>
+    <string name="usage_suggestions_heading">Suggestions</string>
+    <string name="usage_suggestions_empty">No suggestions yet. Enable the feature and grant Usage Access to discover frequently opened apps.</string>
+    <string name="usage_candidate_details">%1$d visits across %2$d of %3$d days</string>
+    <string name="usage_mute_app_notifications">Mute notifications for %1$s</string>
+    <string name="usage_unmute_app_notifications">Unmute notifications for %1$s</string>
+    <string name="usage_app_unavailable">Couldn’t open this app. It may no longer be installed.</string>
+    <string name="usage_notification_title">PieControl app suggestions</string>
+    <string name="usage_notification_message">%1$d frequently opened app(s) are ready to review.</string>
+    <string name="usage_notification_channel">Usage suggestions</string>
+    <string name="usage_notification_channel_description">Optional alerts when new frequently opened apps are found.</string>
+    <string name="usage_notification_permission_denied">Notification permission was not granted.</string>
+    <string name="usage_access_settings_unavailable">Could not open Usage Access settings on this device.</string>
+    <string name="usage_feature_active">Analysis is enabled. Background checks may be delayed by Android battery optimizations.</string>
+    <string name="usage_not_checked_yet">No completed usage check yet.</string>
+    <string-array name="usage_frequency_options">
+        <item>Daily</item>
+        <item>Every 2 days</item>
+        <item>Every 3 days</item>
+        <item>Weekly</item>
+    </string-array>
+    <string-array name="usage_window_options">
+        <item>Last 3 days</item>
+        <item>Last 7 days</item>
+        <item>Last 14 days</item>
+        <item>Last 30 days</item>
+    </string-array>
     <string name="master_switch">Enable PieControl</string>
     <string name="haptic_feedback">Haptic vibration on hover</string>
     <string name="loading_apps">Loading apps…</string>

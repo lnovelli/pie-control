@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <include domain="sharedpref" path="." />
+    <exclude domain="sharedpref" path="pie_usage_suggestions.xml" />
     <include domain="database" path="." />
     <include domain="file" path="." />
 </full-backup-content>

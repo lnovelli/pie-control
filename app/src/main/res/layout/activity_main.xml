@@ -916,6 +916,210 @@
                     android:text="@string/check_updates" />
             </LinearLayout>
 
+            <LinearLayout
+                android:id="@+id/cardUsageSuggestions"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="@drawable/bg_card"
+                android:layout_marginBottom="32dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_section_title"
+                    android:textColor="@color/primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_description"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="12dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/usage_master_toggle"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp" />
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchUsageSuggestions"
+                        android:contentDescription="@string/usage_master_toggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvUsageFeatureStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+                    <TextView
+                        android:id="@+id/tvUsageAccessStatus"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+                    <Button
+                        android:id="@+id/btnUsageAccess"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/usage_grant_access" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/usage_notifications_toggle"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp" />
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchUsageNotifications"
+                        android:contentDescription="@string/usage_notifications_toggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_schedule_heading"
+                    android:textColor="@color/primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_check_frequency"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+                <Spinner
+                    android:id="@+id/spinnerUsageFrequency"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_analysis_window"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+                <Spinner
+                    android:id="@+id/spinnerUsageWindow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvUsageMinimumVisits"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:labelFor="@id/sliderUsageMinimumVisits" />
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/sliderUsageMinimumVisits"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:valueFrom="2"
+                    android:valueTo="20"
+                    android:stepSize="1"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvUsageMinimumDays"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:labelFor="@id/sliderUsageMinimumDays" />
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/sliderUsageMinimumDays"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:valueFrom="1"
+                    android:valueTo="30"
+                    android:stepSize="1"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvUsageLastChecked"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp" />
+
+                <Button
+                    android:id="@+id/btnUsageCheckNow"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_check_now"
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_suggestions_heading"
+                    android:textColor="@color/primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvUsageSuggestionsEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/usage_suggestions_empty"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:paddingVertical="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/usageSuggestionsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
