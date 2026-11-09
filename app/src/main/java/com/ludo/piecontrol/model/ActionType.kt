@@ -16,6 +16,8 @@ enum class ActionType(val defaultLabel: String, val iconRes: Int) {
     VOLUME_DOWN("Volume -", R.drawable.ic_action_volume_down),
     FLASHLIGHT("Flashlight", R.drawable.ic_action_flashlight),
     CHECK_UPDATES("Check Updates", R.drawable.ic_action_update),
+    PIE_SETTINGS("PieControl Settings", R.drawable.ic_action_settings),
+    APP_SEARCH("Search Apps", R.drawable.ic_action_search),
     APP("Open App", R.drawable.ic_action_app),
     URL("Open URL", R.drawable.ic_action_web),
     SHORTCUT("Shortcut", R.drawable.ic_action_shortcut),

@@ -79,8 +79,8 @@ object ActionExecutor {
                 launchShortcut(context, action.data)
             }
 
-            ActionType.FOLDER -> {
-                // Folders are handled by PieOverlayService opening the folder popup
+            ActionType.FOLDER, ActionType.PIE_SETTINGS, ActionType.APP_SEARCH -> {
+                // Overlay-specific actions are dispatched by PieOverlayService.
             }
         }
     }

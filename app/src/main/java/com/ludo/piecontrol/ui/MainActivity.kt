@@ -246,7 +246,7 @@ class MainActivity : AppCompatActivity() {
             R.string.tab_usage_suggestions_summary, R.string.tab_more_summary
         )
         val sections = listOf(
-            listOf(binding.cardMaster, binding.cardPermissions, binding.cardTriggers),
+            listOf(binding.cardMaster, binding.cardQuickButtons, binding.cardPermissions, binding.cardTriggers),
             listOf(binding.cardAppearance),
             listOf(binding.cardLayer1, binding.cardLayer2, binding.cardLayer3),
             listOf(binding.cardFolders),
@@ -712,6 +712,8 @@ class MainActivity : AppCompatActivity() {
         binding.tvTriggerPosLabel.text = "Vertical Position: ${config.triggerPositionPercent}%"
 
         binding.switchShowIndicator.isChecked = config.showTriggerIndicator
+        binding.switchShowSettingsButton.isChecked = config.showSettingsButton
+        binding.switchShowSearchButton.isChecked = config.showSearchButton
 
         // Appearance
         binding.sliderPieScale.value = config.pieScalePercent.toFloat().coerceIn(60f, 150f)
@@ -798,6 +800,17 @@ class MainActivity : AppCompatActivity() {
         binding.switchShowIndicator.setOnCheckedChangeListener { _, isChecked ->
             if (isBindingConfig) return@setOnCheckedChangeListener
             config.showTriggerIndicator = isChecked
+            saveConfig()
+        }
+
+        binding.switchShowSettingsButton.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
+            config.showSettingsButton = isChecked
+            saveConfig()
+        }
+        binding.switchShowSearchButton.setOnCheckedChangeListener { _, isChecked ->
+            if (isBindingConfig) return@setOnCheckedChangeListener
+            config.showSearchButton = isChecked
             saveConfig()
         }
 
@@ -1235,7 +1248,7 @@ class MainActivity : AppCompatActivity() {
             ActionType.BACK, ActionType.HOME, ActionType.RECENTS, ActionType.NOTIFICATIONS,
             ActionType.QUICK_SETTINGS, ActionType.ASSISTANT, ActionType.POWER, ActionType.SCREENSHOT,
             ActionType.LOCK_SCREEN, ActionType.VOLUME_UP, ActionType.VOLUME_DOWN, ActionType.FLASHLIGHT,
-            ActionType.CHECK_UPDATES
+            ActionType.CHECK_UPDATES, ActionType.PIE_SETTINGS, ActionType.APP_SEARCH
         )
         val systemLabels = systemActionTypes.map { it.defaultLabel }
         spinnerSystem.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, systemLabels)

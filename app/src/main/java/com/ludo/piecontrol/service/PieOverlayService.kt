@@ -55,12 +55,14 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
     private var pieMenuView: PieMenuView? = null
     private var isPieAttached = false
     private var isPreviewMode = false
+    private var appSearchPopup: AppSearchPopup? = null
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
                 mainHandler.removeCallbacksAndMessages(null)
                 dismissFolderPopup()
+                appSearchPopup?.dismiss()
                 detachPieMenu()
             }
         }
@@ -105,6 +107,7 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
                 if (!config.enabled) {
                     mainHandler.removeCallbacksAndMessages(null)
                     dismissFolderPopup()
+                    appSearchPopup?.dismiss()
                     detachPieMenu()
                 }
                 if (previousConfig.enabled != config.enabled ||
@@ -322,12 +325,11 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     override fun onActionSelected(action: PieAction) {
         detachPieMenu()
-        if (action.type == ActionType.FOLDER) {
-            mainHandler.post {
-                showFolderPopup(action.data)
-            }
-        } else {
-            ActionExecutor.execute(this, action)
+        when (action.type) {
+            ActionType.FOLDER -> mainHandler.post { showFolderPopup(action.data) }
+            ActionType.PIE_SETTINGS -> onSettingsSelected()
+            ActionType.APP_SEARCH -> onSearchSelected()
+            else -> ActionExecutor.execute(this, action)
         }
     }
 
@@ -340,6 +342,16 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     override fun onDismiss() {
         detachPieMenu()
+    }
+
+    override fun onSearchSelected() {
+        detachPieMenu()
+        mainHandler.post {
+            if (config.enabled) {
+                val popup = appSearchPopup ?: AppSearchPopup(this, windowManager).also { appSearchPopup = it }
+                popup.show()
+            }
+        }
     }
 
     private fun showFolderPopup(folderId: String) {
@@ -382,7 +394,7 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
                 rvActions.layoutManager = GridLayoutManager(themedContext, 3)
                 rvActions.adapter = FolderActionAdapter(themedContext, folder.actions) { action ->
                     dismissFolderPopup()
-                    ActionExecutor.execute(this, action)
+                    onActionSelected(action)
                 }
             }
 
@@ -455,6 +467,8 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
             unregisterReceiver(screenStateReceiver)
         } catch (e: Exception) {}
         dismissFolderPopup()
+        appSearchPopup?.dismiss()
+        appSearchPopup = null
         detachPieMenu()
         pieMenuView?.listener = null
         pieMenuView = null

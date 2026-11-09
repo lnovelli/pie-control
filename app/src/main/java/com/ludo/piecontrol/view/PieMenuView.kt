@@ -28,6 +28,7 @@ class PieMenuView @JvmOverloads constructor(
     interface OnActionSelectedListener {
         fun onActionSelected(action: PieAction)
         fun onSettingsSelected()
+        fun onSearchSelected()
         fun onDismiss()
     }
 
@@ -108,6 +109,7 @@ class PieMenuView @JvmOverloads constructor(
         color = Color.argb(170, 255, 255, 255)
     }
     private val settingsIcon = ContextCompat.getDrawable(context, com.ludo.piecontrol.R.drawable.ic_action_settings)?.mutate()
+    private val searchIcon = ContextCompat.getDrawable(context, com.ludo.piecontrol.R.drawable.ic_action_search)?.mutate()
 
     // Paths and Rects
     private val arcPath = Path()
@@ -122,6 +124,7 @@ class PieMenuView @JvmOverloads constructor(
     private var hoveredLayer: Int = -1
     private var hoveredIndex: Int = -1
     private var isSettingsButtonHovered: Boolean = false
+    private var isSearchButtonHovered: Boolean = false
     private var isSecondaryArmed: Boolean = false
     private var hasTriggeredAction: Boolean = false
 
@@ -208,6 +211,7 @@ class PieMenuView @JvmOverloads constructor(
         this.hoveredLayer = -1
         this.hoveredIndex = -1
         this.isSettingsButtonHovered = false
+        this.isSearchButtonHovered = false
         this.isSecondaryArmed = false
         this.hasTriggeredAction = false
         removeCallbacks(secondaryArmRunnable)
@@ -240,6 +244,7 @@ class PieMenuView @JvmOverloads constructor(
         hoveredLayer = -1
         hoveredIndex = -1
         isSettingsButtonHovered = false
+        isSearchButtonHovered = false
         listener?.onDismiss()
     }
 
@@ -280,6 +285,10 @@ class PieMenuView @JvmOverloads constructor(
                             hasTriggeredAction = true
                             performHaptic(long = true)
                             listener?.onSettingsSelected()
+                        } else if (isSearchButtonHovered) {
+                            hasTriggeredAction = true
+                            performHaptic(long = true)
+                            listener?.onSearchSelected()
                         } else {
                             val action = getHoveredAction()
                             if (action != null) {
@@ -314,7 +323,8 @@ class PieMenuView @JvmOverloads constructor(
 
         var newLayer = -1
         var newIndex = -1
-        val newSettingsHovered = isInsideSettingsButton(touchX, touchY)
+        val newSettingsHovered = config.showSettingsButton && isInsideButton(touchX, touchY, settingsButtonCenter())
+        val newSearchHovered = config.showSearchButton && isInsideButton(touchX, touchY, searchButtonCenter())
 
         val hasL1 = config.layer1.isNotEmpty()
         val hasL2 = config.layer2.isNotEmpty()
@@ -322,7 +332,7 @@ class PieMenuView @JvmOverloads constructor(
 
         // Only select actions within the visible radial area. Beyond the outer ring, clear hover.
         val cancelDeadzone = r0 * 0.85f
-        if (!newSettingsHovered && dist in cancelDeadzone..r3) {
+        if (!newSettingsHovered && !newSearchHovered && dist in cancelDeadzone..r3) {
             newLayer = when {
                 hasL3 && dist >= r2 -> 3
                 hasL2 && dist >= r1 -> 2
@@ -354,17 +364,18 @@ class PieMenuView @JvmOverloads constructor(
             }
         }
 
-        if (newLayer != hoveredLayer || newIndex != hoveredIndex || newSettingsHovered != isSettingsButtonHovered) {
+        if (newLayer != hoveredLayer || newIndex != hoveredIndex || newSettingsHovered != isSettingsButtonHovered || newSearchHovered != isSearchButtonHovered) {
             hoveredLayer = newLayer
             hoveredIndex = newIndex
             isSettingsButtonHovered = newSettingsHovered
+            isSearchButtonHovered = newSearchHovered
             isSecondaryArmed = false
             removeCallbacks(secondaryArmRunnable)
 
-            if (isSettingsButtonHovered || (hoveredLayer != -1 && hoveredIndex != -1)) {
+            if (isSettingsButtonHovered || isSearchButtonHovered || (hoveredLayer != -1 && hoveredIndex != -1)) {
                 performHaptic(long = false)
                 val action = getHoveredAction()
-                if (!isSettingsButtonHovered && action?.secondaryAction != null) {
+                if (!isSettingsButtonHovered && !isSearchButtonHovered && action?.secondaryAction != null) {
                     // Arm secondary action after configured hold delay.
                     val holdDelay = config.secondaryHoldDelayMs.toLong().coerceIn(150L, 1000L)
                     postDelayed(secondaryArmRunnable, holdDelay)
@@ -374,21 +385,31 @@ class PieMenuView @JvmOverloads constructor(
         }
     }
 
-    private fun settingsButtonCenter(): PointF {
+    private fun buttonCenter(settings: Boolean): PointF {
         val density = context.resources.displayMetrics.density
         val inset = 36f * density
+        val edgeInset = inset + 20f // Extra physical pixels from the opposite screen edge.
+        val gap = 64f * density
         val maxX = (width - inset).coerceAtLeast(inset)
         val maxY = (height - inset).coerceAtLeast(inset)
+        val both = config.showSettingsButton && config.showSearchButton
+        val halfGap = if (both) minOf(gap / 2f, (maxY - inset) / 2f) else 0f
+        val offsetY = if (both) (if (settings) halfGap else -halfGap) else 0f
         return when (currentEdge) {
-            Edge.LEFT -> PointF(maxX, anchorY.coerceIn(inset, maxY))
-            Edge.RIGHT -> PointF(inset, anchorY.coerceIn(inset, maxY))
-            Edge.BOTTOM -> PointF(anchorX.coerceIn(inset, maxX), inset)
+            Edge.LEFT -> PointF((width - edgeInset).coerceAtLeast(width / 2f), anchorY.coerceIn(inset + halfGap, maxY - halfGap) + offsetY)
+            Edge.RIGHT -> PointF(edgeInset.coerceAtMost(width / 2f), anchorY.coerceIn(inset + halfGap, maxY - halfGap) + offsetY)
+            Edge.BOTTOM -> {
+                val centerY = (edgeInset + halfGap).coerceAtMost(maxY - halfGap)
+                PointF(anchorX.coerceIn(inset, maxX), centerY + offsetY)
+            }
         }
     }
 
-    private fun isInsideSettingsButton(x: Float, y: Float): Boolean {
-        val center = settingsButtonCenter()
-        val hitRadius = 36f * context.resources.displayMetrics.density
+    private fun settingsButtonCenter() = buttonCenter(true)
+    private fun searchButtonCenter() = buttonCenter(false)
+
+    private fun isInsideButton(x: Float, y: Float, center: PointF): Boolean {
+        val hitRadius = 32f * context.resources.displayMetrics.density
         val dx = x - center.x
         val dy = y - center.y
         return dx * dx + dy * dy <= hitRadius * hitRadius
@@ -457,18 +478,18 @@ class PieMenuView @JvmOverloads constructor(
         // Draw shared borders once, after all neighboring slice fills.
         canvas.drawPath(borderPath, sliceBorderPaint)
 
-        drawSettingsButton(canvas)
+        if (config.showSettingsButton) drawButton(canvas, settingsButtonCenter(), settingsIcon, isSettingsButtonHovered)
+        if (config.showSearchButton) drawButton(canvas, searchButtonCenter(), searchIcon, isSearchButtonHovered)
     }
 
-    private fun drawSettingsButton(canvas: Canvas) {
-        val center = settingsButtonCenter()
+    private fun drawButton(canvas: Canvas, center: PointF, drawable: android.graphics.drawable.Drawable?, hovered: Boolean) {
         val density = context.resources.displayMetrics.density
         val radius = 28f * density
-        val backgroundPaint = if (isSettingsButtonHovered) settingsButtonHighlightPaint else settingsButtonPaint
+        val backgroundPaint = if (hovered) settingsButtonHighlightPaint else settingsButtonPaint
         canvas.drawCircle(center.x, center.y, radius, backgroundPaint)
         canvas.drawCircle(center.x, center.y, radius, settingsButtonBorderPaint)
 
-        settingsIcon?.let { icon ->
+        drawable?.let { icon ->
             val iconSize = (24f * density).toInt()
             icon.setTint(defaultIconColor)
             icon.setBounds(

@@ -12,6 +12,8 @@ data class PieConfig(
     var triggerWidthDp: Int = 24,
     var triggerPositionPercent: Int = 50,
     var showTriggerIndicator: Boolean = true,
+    var showSettingsButton: Boolean = true,
+    var showSearchButton: Boolean = true,
     var triggerIndicatorAlpha: Int = 35,
     var backgroundColorHex: String = "#DD141425",
     var highlightColorHex: String = "#FF00E676",
@@ -107,6 +109,8 @@ data class PieConfig(
                 triggerWidthDp = json.optInt("triggerWidthDp", 24),
                 triggerPositionPercent = json.optInt("triggerPositionPercent", 50),
                 showTriggerIndicator = json.optBoolean("showTriggerIndicator", true),
+                showSettingsButton = json.optBoolean("showSettingsButton", true),
+                showSearchButton = json.optBoolean("showSearchButton", true),
                 triggerIndicatorAlpha = json.optInt("triggerIndicatorAlpha", 35),
                 backgroundColorHex = json.optString("backgroundColorHex", "#DD141425"),
                 highlightColorHex = json.optString("highlightColorHex", "#FF00E676"),
@@ -162,6 +166,8 @@ data class PieConfig(
             put("triggerWidthDp", triggerWidthDp)
             put("triggerPositionPercent", triggerPositionPercent)
             put("showTriggerIndicator", showTriggerIndicator)
+            put("showSettingsButton", showSettingsButton)
+            put("showSearchButton", showSearchButton)
             put("triggerIndicatorAlpha", triggerIndicatorAlpha)
             put("backgroundColorHex", backgroundColorHex)
             put("highlightColorHex", highlightColorHex)

@@ -105,6 +105,39 @@
                     android:layout_height="wrap_content" />
             </LinearLayout>
 
+            <!-- Opposite-edge quick buttons -->
+            <LinearLayout
+                android:id="@+id/cardQuickButtons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="@drawable/bg_card"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Opposite-edge buttons"
+                    android:textColor="@color/primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switchShowSettingsButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Show settings button"
+                    android:textColor="@color/text_primary" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switchShowSearchButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Show app search button"
+                    android:textColor="@color/text_primary" />
+            </LinearLayout>
+
             <!-- Permissions Card -->
             <LinearLayout
                 android:id="@+id/cardPermissions"
