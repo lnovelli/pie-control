@@ -13,6 +13,7 @@
 - A secondary action fires once at its configured hold timeout, dismisses immediately, and latches the gesture so its later release cannot also execute the primary action. Cancel the hold on meaningful movement beyond touch slop or a selection change; reset the latch only for a new gesture.
 - Bound the lifetime of the full-screen menu and clean up timers and windows on UP, CANCEL, timeout, screen-off, service shutdown, and exceptions; restore parent touch interception if used. Perform window operations on the main thread. Avoid treating menu dismissal as folder deletion.
 - Settings/search controls must use the same centers for drawing and hit-testing, remain on screen opposite the active edge, and be excluded from both when disabled. Preserve existing defaults when adding persisted visibility settings.
+- Recent app controls appear between search and settings, with the same drawing and hit-test geometry. Exclude apps already reachable from rings, secondary actions and nested folders using the same mapping as App Suggestions; invalidate stale results when mappings change. Load usage and icons off the UI thread, retain only an in-memory snapshot, and do not change a control under an active selection. Zero disables them; Usage Access is required.
 
 ## Pickers and configuration
 

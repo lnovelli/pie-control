@@ -14,6 +14,7 @@ data class PieConfig(
     var showTriggerIndicator: Boolean = true,
     var showSettingsButton: Boolean = true,
     var showSearchButton: Boolean = true,
+    var recentAppsCount: Int = 5,
     var triggerIndicatorAlpha: Int = 35,
     var backgroundColorHex: String = "#DD141425",
     var highlightColorHex: String = "#FF00E676",
@@ -111,6 +112,7 @@ data class PieConfig(
                 showTriggerIndicator = json.optBoolean("showTriggerIndicator", true),
                 showSettingsButton = json.optBoolean("showSettingsButton", true),
                 showSearchButton = json.optBoolean("showSearchButton", true),
+                recentAppsCount = json.optInt("recentAppsCount", 5).coerceIn(0, 10),
                 triggerIndicatorAlpha = json.optInt("triggerIndicatorAlpha", 35),
                 backgroundColorHex = json.optString("backgroundColorHex", "#DD141425"),
                 highlightColorHex = json.optString("highlightColorHex", "#FF00E676"),
@@ -168,6 +170,7 @@ data class PieConfig(
             put("showTriggerIndicator", showTriggerIndicator)
             put("showSettingsButton", showSettingsButton)
             put("showSearchButton", showSearchButton)
+            put("recentAppsCount", recentAppsCount)
             put("triggerIndicatorAlpha", triggerIndicatorAlpha)
             put("backgroundColorHex", backgroundColorHex)
             put("highlightColorHex", highlightColorHex)

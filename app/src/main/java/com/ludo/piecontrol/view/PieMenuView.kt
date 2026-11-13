@@ -25,6 +25,8 @@ class PieMenuView @JvmOverloads constructor(
 
     enum class Edge { LEFT, RIGHT, BOTTOM }
 
+    data class RecentApp(val action: PieAction, val icon: Bitmap?)
+
     interface OnActionSelectedListener {
         fun onActionSelected(action: PieAction)
         fun onSettingsSelected()
@@ -33,6 +35,20 @@ class PieMenuView @JvmOverloads constructor(
     }
 
     var listener: OnActionSelectedListener? = null
+    private var recentApps: List<RecentApp> = emptyList()
+    private var hoveredRecentIndex = -1
+    private var controlsChangedSinceMove = false
+
+    fun setRecentApps(apps: List<RecentApp>, force: Boolean = false) {
+        // Do not change a control under the finger during an active selection.
+        if (!force && visibility == VISIBLE &&
+            (hoveredLayer >= 0 || hoveredRecentIndex >= 0 || isSettingsButtonHovered || isSearchButtonHovered)) return
+        if (!force && visibility == VISIBLE && recentApps.map { it.action.data } != apps.map { it.action.data }) {
+            controlsChangedSinceMove = true
+        }
+        recentApps = apps
+        invalidate()
+    }
     var config: PieConfig = PieConfig.createDefault()
         set(value) {
             if (field.layer1 != value.layer1 || field.layer2 != value.layer2 ||
@@ -212,6 +228,8 @@ class PieMenuView @JvmOverloads constructor(
         this.hoveredIndex = -1
         this.isSettingsButtonHovered = false
         this.isSearchButtonHovered = false
+        this.hoveredRecentIndex = -1
+        this.controlsChangedSinceMove = false
         this.isSecondaryArmed = false
         this.hasTriggeredAction = false
         removeCallbacks(secondaryArmRunnable)
@@ -245,6 +263,7 @@ class PieMenuView @JvmOverloads constructor(
         hoveredIndex = -1
         isSettingsButtonHovered = false
         isSearchButtonHovered = false
+        hoveredRecentIndex = -1
         listener?.onDismiss()
     }
 
@@ -272,6 +291,7 @@ class PieMenuView @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                controlsChangedSinceMove = false
                 updateHover(localX, localY)
                 return true
             }
@@ -279,7 +299,7 @@ class PieMenuView @JvmOverloads constructor(
                 removeCallbacks(safetyDismissRunnable)
                 removeCallbacks(secondaryArmRunnable)
                 try {
-                    if (!hasTriggeredAction) {
+                    if (!hasTriggeredAction && !controlsChangedSinceMove) {
                         updateHover(localX, localY)
                         if (isSettingsButtonHovered) {
                             hasTriggeredAction = true
@@ -289,6 +309,12 @@ class PieMenuView @JvmOverloads constructor(
                             hasTriggeredAction = true
                             performHaptic(long = true)
                             listener?.onSearchSelected()
+                        } else if (hoveredRecentIndex >= 0) {
+                            recentApps.getOrNull(hoveredRecentIndex)?.let { recent ->
+                                hasTriggeredAction = true
+                                performHaptic(long = true)
+                                listener?.onActionSelected(recent.action)
+                            }
                         } else {
                             val action = getHoveredAction()
                             if (action != null) {
@@ -325,6 +351,9 @@ class PieMenuView @JvmOverloads constructor(
         var newIndex = -1
         val newSettingsHovered = config.showSettingsButton && isInsideButton(touchX, touchY, settingsButtonCenter())
         val newSearchHovered = config.showSearchButton && isInsideButton(touchX, touchY, searchButtonCenter())
+        val newRecentIndex = recentApps.indices.firstOrNull {
+            isInsideButton(touchX, touchY, recentButtonCenter(it))
+        } ?: -1
 
         val hasL1 = config.layer1.isNotEmpty()
         val hasL2 = config.layer2.isNotEmpty()
@@ -332,7 +361,7 @@ class PieMenuView @JvmOverloads constructor(
 
         // Only select actions within the visible radial area. Beyond the outer ring, clear hover.
         val cancelDeadzone = r0 * 0.85f
-        if (!newSettingsHovered && !newSearchHovered && dist in cancelDeadzone..r3) {
+        if (!newSettingsHovered && !newSearchHovered && newRecentIndex < 0 && dist in cancelDeadzone..r3) {
             newLayer = when {
                 hasL3 && dist >= r2 -> 3
                 hasL2 && dist >= r1 -> 2
@@ -364,18 +393,19 @@ class PieMenuView @JvmOverloads constructor(
             }
         }
 
-        if (newLayer != hoveredLayer || newIndex != hoveredIndex || newSettingsHovered != isSettingsButtonHovered || newSearchHovered != isSearchButtonHovered) {
+        if (newLayer != hoveredLayer || newIndex != hoveredIndex || newSettingsHovered != isSettingsButtonHovered || newSearchHovered != isSearchButtonHovered || newRecentIndex != hoveredRecentIndex) {
             hoveredLayer = newLayer
             hoveredIndex = newIndex
             isSettingsButtonHovered = newSettingsHovered
             isSearchButtonHovered = newSearchHovered
+            hoveredRecentIndex = newRecentIndex
             isSecondaryArmed = false
             removeCallbacks(secondaryArmRunnable)
 
-            if (isSettingsButtonHovered || isSearchButtonHovered || (hoveredLayer != -1 && hoveredIndex != -1)) {
+            if (isSettingsButtonHovered || isSearchButtonHovered || hoveredRecentIndex >= 0 || (hoveredLayer != -1 && hoveredIndex != -1)) {
                 performHaptic(long = false)
                 val action = getHoveredAction()
-                if (!isSettingsButtonHovered && !isSearchButtonHovered && action?.secondaryAction != null) {
+                if (!isSettingsButtonHovered && !isSearchButtonHovered && hoveredRecentIndex < 0 && action?.secondaryAction != null) {
                     // Arm secondary action after configured hold delay.
                     val holdDelay = config.secondaryHoldDelayMs.toLong().coerceIn(150L, 1000L)
                     postDelayed(secondaryArmRunnable, holdDelay)
@@ -385,31 +415,48 @@ class PieMenuView @JvmOverloads constructor(
         }
     }
 
-    private fun buttonCenter(settings: Boolean): PointF {
+    // Search, recents and settings share one layout for both drawing and hit testing.
+    private fun buttonCenter(index: Int): PointF {
         val density = context.resources.displayMetrics.density
         val inset = 36f * density
-        val edgeInset = inset + 20f // Extra physical pixels from the opposite screen edge.
-        val gap = 64f * density
+        val edgeInset = inset + 20f
         val maxX = (width - inset).coerceAtLeast(inset)
-        val maxY = (height - inset).coerceAtLeast(inset)
-        val both = config.showSettingsButton && config.showSearchButton
-        val halfGap = if (both) minOf(gap / 2f, (maxY - inset) / 2f) else 0f
-        val offsetY = if (both) (if (settings) halfGap else -halfGap) else 0f
+        val count = recentApps.size + (if (config.showSearchButton) 1 else 0) + (if (config.showSettingsButton) 1 else 0)
+        val radius = buttonRadius()
+        @Suppress("DEPRECATION")
+        val topInset = (rootWindowInsets?.systemWindowInsetTop ?: 0).toFloat()
+        @Suppress("DEPRECATION")
+        val bottomInset = (rootWindowInsets?.systemWindowInsetBottom ?: 0).toFloat()
+        val top = topInset + radius
+        val bottom = (height - bottomInset - radius).coerceAtLeast(top)
+        val gap = if (count > 1) minOf(64f * density, (bottom - top) / (count - 1)) else 0f
+        val halfSpan = gap * (count - 1).coerceAtLeast(0) / 2f
+        val minCenter = top + halfSpan
+        val maxCenter = (bottom - halfSpan).coerceAtLeast(minCenter)
+        val centerY = if (currentEdge == Edge.BOTTOM) minCenter else anchorY.coerceIn(minCenter, maxCenter)
+        val y = centerY + (index - (count - 1) / 2f) * gap
         return when (currentEdge) {
-            Edge.LEFT -> PointF((width - edgeInset).coerceAtLeast(width / 2f), anchorY.coerceIn(inset + halfGap, maxY - halfGap) + offsetY)
-            Edge.RIGHT -> PointF(edgeInset.coerceAtMost(width / 2f), anchorY.coerceIn(inset + halfGap, maxY - halfGap) + offsetY)
-            Edge.BOTTOM -> {
-                val centerY = (edgeInset + halfGap).coerceAtMost(maxY - halfGap)
-                PointF(anchorX.coerceIn(inset, maxX), centerY + offsetY)
-            }
+            Edge.LEFT -> PointF((width - edgeInset).coerceAtLeast(width / 2f), y)
+            Edge.RIGHT -> PointF(edgeInset.coerceAtMost(width / 2f), y)
+            Edge.BOTTOM -> PointF(anchorX.coerceIn(inset, maxX), y)
         }
     }
 
-    private fun settingsButtonCenter() = buttonCenter(true)
-    private fun searchButtonCenter() = buttonCenter(false)
+    private fun buttonRadius(): Float {
+        val density = context.resources.displayMetrics.density
+        val count = recentApps.size + (if (config.showSearchButton) 1 else 0) + (if (config.showSettingsButton) 1 else 0)
+        @Suppress("DEPRECATION")
+        val insets = (rootWindowInsets?.systemWindowInsetTop ?: 0) + (rootWindowInsets?.systemWindowInsetBottom ?: 0)
+        val available = (height - insets).coerceAtLeast(1).toFloat()
+        return minOf(28f * density, available / (2.3f * count.coerceAtLeast(1)))
+    }
+
+    private fun searchButtonCenter() = buttonCenter(0)
+    private fun recentButtonCenter(index: Int) = buttonCenter(index + if (config.showSearchButton) 1 else 0)
+    private fun settingsButtonCenter() = buttonCenter(recentApps.size + if (config.showSearchButton) 1 else 0)
 
     private fun isInsideButton(x: Float, y: Float, center: PointF): Boolean {
-        val hitRadius = 32f * context.resources.displayMetrics.density
+        val hitRadius = buttonRadius()
         val dx = x - center.x
         val dy = y - center.y
         return dx * dx + dy * dy <= hitRadius * hitRadius
@@ -480,17 +527,24 @@ class PieMenuView @JvmOverloads constructor(
 
         if (config.showSettingsButton) drawButton(canvas, settingsButtonCenter(), settingsIcon, isSettingsButtonHovered)
         if (config.showSearchButton) drawButton(canvas, searchButtonCenter(), searchIcon, isSearchButtonHovered)
+        recentApps.forEachIndexed { index, recent ->
+            val center = recentButtonCenter(index)
+            drawButton(canvas, center, null, index == hoveredRecentIndex)
+            recent.icon?.let { bitmap ->
+                val half = buttonRadius() * 0.7f
+                canvas.drawBitmap(bitmap, null, RectF(center.x - half, center.y - half, center.x + half, center.y + half), null)
+            }
+        }
     }
 
     private fun drawButton(canvas: Canvas, center: PointF, drawable: android.graphics.drawable.Drawable?, hovered: Boolean) {
-        val density = context.resources.displayMetrics.density
-        val radius = 28f * density
+        val radius = buttonRadius()
         val backgroundPaint = if (hovered) settingsButtonHighlightPaint else settingsButtonPaint
         canvas.drawCircle(center.x, center.y, radius, backgroundPaint)
         canvas.drawCircle(center.x, center.y, radius, settingsButtonBorderPaint)
 
         drawable?.let { icon ->
-            val iconSize = (24f * density).toInt()
+            val iconSize = (radius * 24f / 28f).toInt()
             icon.setTint(defaultIconColor)
             icon.setBounds(
                 (center.x - iconSize / 2f).toInt(),

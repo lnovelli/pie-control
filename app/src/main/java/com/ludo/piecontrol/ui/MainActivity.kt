@@ -50,6 +50,7 @@ import com.ludo.piecontrol.usage.UsageSuggestionNotifications
 import com.ludo.piecontrol.usage.UsageSuggestionPreferences
 import com.ludo.piecontrol.usage.UsageSuggestionScheduler
 import com.ludo.piecontrol.usage.UsageSuggestionSettings
+import com.ludo.piecontrol.usage.mappedAppPackages
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.CancellationException
@@ -312,11 +313,7 @@ class MainActivity : AppCompatActivity() {
         isBindingUsageSettings = false
 
         binding.btnUsageAccess.setOnClickListener {
-            try {
-                startActivity(UsageAccess.settingsIntent())
-            } catch (_: Exception) {
-                Toast.makeText(this, R.string.usage_access_settings_unavailable, Toast.LENGTH_LONG).show()
-            }
+            openUsageAccessSettings()
         }
         binding.btnUsageCheckNow.setOnClickListener {
             val current = usagePreferences.settings()
@@ -486,6 +483,8 @@ class MainActivity : AppCompatActivity() {
         binding.switchUsageNotifications.isChecked = settings.notificationsEnabled
         binding.btnUsageAccess.setText(if (hasUsageAccess) R.string.usage_manage_access else R.string.usage_grant_access)
         binding.tvUsageAccessStatus.setText(if (hasUsageAccess) R.string.usage_access_granted else R.string.usage_access_missing)
+        binding.btnRecentAppsAccess.setText(if (hasUsageAccess) R.string.usage_manage_access else R.string.usage_grant_access)
+        binding.tvRecentAppsAccessStatus.setText(if (hasUsageAccess) R.string.usage_access_granted else R.string.usage_access_missing)
         binding.tvUsageFeatureStatus.setText(
             when {
                 !settings.enabled -> R.string.usage_feature_disabled
@@ -607,32 +606,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun mappedAppPackages(currentConfig: PieConfig): Set<String> {
-        val mapped = mutableSetOf<String>()
-        val visitedFolders = mutableSetOf<String>()
-        fun visit(action: PieAction) {
-            when (action.type) {
-                ActionType.APP -> action.data.takeIf { it.isNotBlank() }?.let(mapped::add)
-                ActionType.SHORTCUT -> if (action.data.isNotBlank()) {
-                    try {
-                        val shortcutIntent = Intent.parseUri(action.data, Intent.URI_INTENT_SCHEME)
-                        (shortcutIntent.`package` ?: shortcutIntent.component?.packageName)?.let(mapped::add)
-                    } catch (_: Exception) {
-                        // Ignore invalid shortcut data while determining ring coverage.
-                    }
-                }
-                ActionType.FOLDER -> {
-                    val folder = currentConfig.folders.firstOrNull { it.id == action.data || it.name == action.data }
-                    if (folder != null && visitedFolders.add(folder.id)) folder.actions.forEach(::visit)
-                }
-                else -> Unit
-            }
-            action.secondaryAction?.let(::visit)
-        }
-        (currentConfig.layer1 + currentConfig.layer2 + currentConfig.layer3).forEach(::visit)
-        return mapped
-    }
-
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -643,6 +616,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupPermissionsUi() {
+        binding.btnRecentAppsAccess.setOnClickListener { openUsageAccessSettings() }
         binding.btnOverlayPermission.setOnClickListener {
             if (!Settings.canDrawOverlays(this)) {
                 val intent = Intent(
@@ -656,6 +630,14 @@ class MainActivity : AppCompatActivity() {
         binding.btnAccessibilityPermission.setOnClickListener {
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             startActivity(intent)
+        }
+    }
+
+    private fun openUsageAccessSettings() {
+        try {
+            startActivity(UsageAccess.settingsIntent())
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.usage_access_settings_unavailable, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -714,6 +696,8 @@ class MainActivity : AppCompatActivity() {
         binding.switchShowIndicator.isChecked = config.showTriggerIndicator
         binding.switchShowSettingsButton.isChecked = config.showSettingsButton
         binding.switchShowSearchButton.isChecked = config.showSearchButton
+        binding.sliderRecentAppsCount.value = config.recentAppsCount.coerceIn(0, 10).toFloat()
+        binding.tvRecentAppsCount.text = getString(R.string.recent_apps_count, config.recentAppsCount.coerceIn(0, 10))
 
         // Appearance
         binding.sliderPieScale.value = config.pieScalePercent.toFloat().coerceIn(60f, 150f)
@@ -812,6 +796,13 @@ class MainActivity : AppCompatActivity() {
             if (isBindingConfig) return@setOnCheckedChangeListener
             config.showSearchButton = isChecked
             saveConfig()
+        }
+
+        binding.sliderRecentAppsCount.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
+            config.recentAppsCount = value.toInt()
+            binding.tvRecentAppsCount.text = getString(R.string.recent_apps_count, config.recentAppsCount)
+            scheduleConfigSave()
         }
 
         binding.sliderPieScale.addOnChangeListener { _, value, fromUser ->

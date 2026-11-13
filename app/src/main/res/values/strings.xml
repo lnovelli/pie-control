@@ -26,7 +26,7 @@
     <string name="usage_minimum_days">Spread across at least %1$d days</string>
     <string name="usage_access_granted">Usage Access is granted.</string>
     <string name="usage_access_missing">Usage Access is not granted.</string>
-    <string name="usage_feature_disabled">Suggestions are off; no usage data is being checked.</string>
+    <string name="usage_feature_disabled">Suggestions are off; no suggestion analysis is being run.</string>
     <string name="usage_waiting_for_access">Grant Usage Access below to start analysis.</string>
     <string name="usage_waiting_for_scan">Usage Access is ready. The first background check will run soon.</string>
     <string name="usage_last_checked">Last checked: %1$s · %2$d suggestions</string>
@@ -60,6 +60,8 @@
         <item>Last 30 days</item>
     </string-array>
     <string name="master_switch">Enable PieControl</string>
+    <string name="recent_apps_count">Recent apps: %1$d</string>
+    <string name="recent_apps_description">Show recently used apps near the pie menu. Set to 0 to disable. Usage Access is required.</string>
     <string name="haptic_feedback">Haptic vibration on hover</string>
     <string name="loading_apps">Loading apps…</string>
     <string name="accessibility_service_label">PieControl Accessibility</string>

@@ -9,8 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
-import com.ludo.piecontrol.model.ActionType
-import com.ludo.piecontrol.model.PieAction
 import com.ludo.piecontrol.model.PieConfig
 import java.time.Instant
 import java.time.ZoneId
@@ -37,7 +35,7 @@ internal class UsageSuggestionAnalyzer(private val context: Context) {
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
             PackageManager.MATCH_DEFAULT_ONLY
         )?.activityInfo?.packageName
-        val mappedPackages = mappedPackages(config)
+        val mappedPackages = mappedAppPackages(config)
 
         val endTime = System.currentTimeMillis()
         val startTime = endTime - TimeUnit.DAYS.toMillis(settings.analysisWindowDays.toLong())
@@ -104,36 +102,6 @@ internal class UsageSuggestionAnalyzer(private val context: Context) {
         return packageManager.queryIntentActivities(launchIntent, 0)
             .mapNotNull { it.activityInfo?.packageName }
             .toSet()
-    }
-
-    private fun mappedPackages(config: PieConfig): Set<String> {
-        val mapped = mutableSetOf<String>()
-        val visitedFolders = mutableSetOf<String>()
-
-        fun visit(action: PieAction) {
-            when (action.type) {
-                ActionType.APP -> action.data.takeIf { it.isNotBlank() }?.let(mapped::add)
-                ActionType.SHORTCUT -> {
-                    if (action.data.isNotBlank()) {
-                        try {
-                            val intent = Intent.parseUri(action.data, Intent.URI_INTENT_SCHEME)
-                            (intent.`package` ?: intent.component?.packageName)?.let(mapped::add)
-                        } catch (_: Exception) {
-                            // Invalid legacy shortcut URIs do not map an app package.
-                        }
-                    }
-                }
-                ActionType.FOLDER -> {
-                    val folder = config.folders.firstOrNull { it.id == action.data || it.name == action.data }
-                    if (folder != null && visitedFolders.add(folder.id)) folder.actions.forEach(::visit)
-                }
-                else -> Unit
-            }
-            action.secondaryAction?.let(::visit)
-        }
-
-        (config.layer1 + config.layer2 + config.layer3).forEach(::visit)
-        return mapped
     }
 
     private companion object {

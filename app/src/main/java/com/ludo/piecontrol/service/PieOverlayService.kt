@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.PixelFormat
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -30,8 +32,12 @@ import com.ludo.piecontrol.model.PieAction
 import com.ludo.piecontrol.model.PieConfig
 import com.ludo.piecontrol.ui.FolderActionAdapter
 import com.ludo.piecontrol.ui.MainActivity
+import com.ludo.piecontrol.usage.RecentApps
+import com.ludo.piecontrol.usage.UsageAccess
 import com.ludo.piecontrol.view.PieMenuView
 import com.ludo.piecontrol.view.TriggerEdgeView
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
@@ -56,6 +62,10 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
     private var isPieAttached = false
     private var isPreviewMode = false
     private var appSearchPopup: AppSearchPopup? = null
+    private val recentExecutor = Executors.newSingleThreadExecutor()
+    private var recentTask: Future<*>? = null
+    private var recentGeneration = 0
+    private var cachedRecentApps: List<PieMenuView.RecentApp> = emptyList()
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -95,6 +105,7 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
         startAsForeground()
         setupPieMenuView()
+        refreshRecentApps()
         refreshTriggers()
     }
 
@@ -104,6 +115,14 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
                 val previousConfig = config
                 config = prefsManager.loadConfig()
                 pieMenuView?.config = config
+                if (previousConfig.recentAppsCount != config.recentAppsCount ||
+                    previousConfig.layer1 != config.layer1 || previousConfig.layer2 != config.layer2 ||
+                    previousConfig.layer3 != config.layer3 || previousConfig.folders != config.folders) {
+                    cachedRecentApps = emptyList()
+                    if (isPieAttached) pieMenuView?.hide()
+                    pieMenuView?.setRecentApps(emptyList(), force = true)
+                    refreshRecentApps()
+                }
                 if (!config.enabled) {
                     mainHandler.removeCallbacksAndMessages(null)
                     dismissFolderPopup()
@@ -276,6 +295,10 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
     private fun handleTriggerSwipe(edge: PieMenuView.Edge, startX: Float, startY: Float, event: MotionEvent) {
         val pie = pieMenuView ?: return
 
+        if (config.recentAppsCount <= 0 || !UsageAccess.isGranted(this)) cachedRecentApps = emptyList()
+        pie.setRecentApps(cachedRecentApps.take(config.recentAppsCount.coerceIn(0, 10)), force = true)
+        refreshRecentApps()
+
         if (!isPieAttached) {
             val pieParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -318,6 +341,36 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
         pie.showAt(anchorX, anchorY, edge)
         pie.handleMotionEvent(event)
+    }
+
+    private fun refreshRecentApps() {
+        val generation = ++recentGeneration
+        recentTask?.cancel(true)
+        val count = config.recentAppsCount.coerceIn(0, 10)
+        val configSnapshot = config
+        if (count == 0 || !UsageAccess.isGranted(this)) {
+            cachedRecentApps = emptyList()
+            return
+        }
+        recentTask = recentExecutor.submit {
+            val size = (48f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+            val apps = RecentApps(this).load(configSnapshot, count).map { action ->
+                val icon = try {
+                    val drawable = packageManager.getApplicationIcon(action.data)
+                    Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { bitmap ->
+                        drawable.setBounds(0, 0, size, size)
+                        drawable.draw(Canvas(bitmap))
+                    }
+                } catch (_: Exception) { null }
+                PieMenuView.RecentApp(action, icon)
+            }
+            mainHandler.post {
+                if (generation == recentGeneration && isRunning) {
+                    cachedRecentApps = if (UsageAccess.isGranted(this)) apps else emptyList()
+                    if (isPieAttached) pieMenuView?.setRecentApps(cachedRecentApps)
+                }
+            }
+        }
     }
 
     private var folderPopupView: View? = null
@@ -462,6 +515,9 @@ class PieOverlayService : Service(), PieMenuView.OnActionSelectedListener {
 
     override fun onDestroy() {
         isRunning = false
+        recentGeneration++
+        recentTask?.cancel(true)
+        recentExecutor.shutdownNow()
         mainHandler.removeCallbacksAndMessages(null)
         try {
             unregisterReceiver(screenStateReceiver)

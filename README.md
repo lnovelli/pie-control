@@ -41,6 +41,7 @@ A modern, fluid Android navigation gesture app. Swipe inward from any screen edg
   - Adjustable alpha transparency and opacity (30% to 100%).
   - Haptic feedback vibration on hovering over sectors.
 - **App Suggestions (opt-in)**: On-device analysis of foreground app visits to suggest frequently opened apps not already assigned to rings. Usage Access is required only when enabled; analysis windows and visit thresholds are configurable. Suggestions can be opened directly, and optional notifications can be muted per app.
+- **Recent apps**: Launch recently used apps from the controls between search and settings, excluding apps already reachable from rings and their folders. The General tab controls how many are shown (0–10, default 5); Usage Access is required. Results depend on the foreground events retained by Android and may contain fewer apps than requested.
 - **Backup, Restore & Google Cloud Sync**:
   - One-tap Export and Import of configuration as JSON.
   - Support for Android Auto Backup (`allowBackup="true"` and `dataExtractionRules`) to automatically preserve settings in your linked Google Account across device reinstalls.
@@ -57,9 +58,10 @@ Download the latest APK and view release notes on GitHub:
 
 The in-app update checker also uses GitHub Releases.
 
-## Latest Release: 1.5.13
+## Latest Release: 1.5.14
 
-- Refined the launcher icon with a compact two-ring mark, more room for launcher masks, and slightly bolder rings and center dot.
+- Quickly search installed apps from the pie menu, with configurable search and settings buttons.
+- Show recent apps beside those buttons, excluding apps already reachable from the rings and their folders. Set the number in General; Usage Access is required.
 
 ## Settings
 
@@ -78,7 +80,7 @@ The selected tab and each tab's scroll position survive activity recreation. App
 
 1. **Display over other apps (`SYSTEM_ALERT_WINDOW`)**: Required to display edge trigger zones and the radial pie menu over other applications.
 2. **Accessibility Service**: Required to execute system navigation actions (Back, Home, Recents, Notifications, etc.).
-3. **Usage Access (optional)**: Required only if you enable App Suggestions; usage analysis stays on-device.
+3. **Usage Access (optional)**: Required for recent apps and App Suggestions; usage analysis stays on-device.
 
 ## Build from Source
 
